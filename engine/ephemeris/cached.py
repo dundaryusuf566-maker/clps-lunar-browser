@@ -27,6 +27,16 @@ import numpy as np
 
 from .base import EphemerisProvider
 
+
+def _angle(a: np.ndarray, b: np.ndarray) -> float:
+    """Angle between two vectors in radians, accurate near zero.
+
+    arccos(a.b) cannot resolve angles below ~1.5e-8 rad (8.5e-7 deg): one rounding step in the dot
+    product moves arccos by that much, so tiny errors read as noise that depends on the machine.
+    atan2(|a x b|, a.b) has no such floor.
+    """
+    return float(np.arctan2(np.linalg.norm(np.cross(a, b)), np.dot(a, b)))
+
 _FORMAT_VERSION = 2
 
 
@@ -274,7 +284,7 @@ class CachedEphemeris(EphemerisProvider):
             dv = [np.linalg.norm(self.state(b, "EARTH", t)[3:] - base.state(b, "EARTH", t)[3:]) for t in ts]
             out[b] = {"max_pos_err_km": float(np.max(dr)), "max_vel_err_km_s": float(np.max(dv))}
         for b in self._pole:
-            da = [np.arccos(np.clip(np.dot(self.pole(b, t), base.pole(b, t)), -1, 1)) for t in ts]
+            da = [_angle(self.pole(b, t), base.pole(b, t)) for t in ts]
             out[f"{b}_pole"] = {"max_angle_err_deg": float(np.degrees(np.max(da)))}
         for b in self._xaxis:
             dm = []
@@ -282,7 +292,7 @@ class CachedEphemeris(EphemerisProvider):
                 rb = base.body_fixed_rotation(b, t)
                 if rb is None:
                     break
-                dm.append(np.arccos(np.clip(np.dot(self.body_fixed_rotation(b, t)[0], rb[0]), -1, 1)))
+                dm.append(_angle(self.body_fixed_rotation(b, t)[0], rb[0]))
             if dm:
                 out[f"{b}_meridian"] = {"max_angle_err_deg": float(np.degrees(np.max(dm)))}
         return out
