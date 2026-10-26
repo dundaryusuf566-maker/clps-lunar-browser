@@ -1,0 +1,397 @@
+{
+ "meta": {
+  "generated_utc": "2026-10-21T19:38:15+00:00",
+  "engine_version": "0.17.2",
+  "ephemeris": "spice",
+  "thermal_json": "2026-10-19T14:00:39+00:00",
+  "grid": "LDEM_75S_120M",
+  "spacing_km": 5.0,
+  "versions": {
+   "A": "own horizon, tilted",
+   "B": "own horizon, level",
+   "C": "grid horizon, tilted",
+   "D": "grid horizon, level (browser)",
+   "E": "grid horizon, 240 m slope map"
+  },
+  "rule": {
+   "max_ratio_to_D": 0.5,
+   "max_median_k": 15.0
+  },
+  "note": "Analysis after the browser check (web/tests/regolith.check.mjs); direct sunlight only."
+ },
+ "median_err_k": {
+  "A": 0.0,
+  "B": 26.71,
+  "C": 10.54,
+  "D": 32.17,
+  "E": 14.82
+ },
+ "points": [
+  {
+   "key": "ref",
+   "label": "Mons Mouton (IM-2 touchdown point)",
+   "lat": -84.7906,
+   "lon": 29.1957,
+   "slope_deg": 2.35,
+   "slope_240_deg": 1.52,
+   "tilt_diff_deg": 0.83,
+   "sun_hours_own": 6335,
+   "sun_hours_grid": 5516,
+   "mean_abs_err_k": {
+    "A": 0.0,
+    "B": 10.92,
+    "C": 1.82,
+    "D": 12.43,
+    "E": 5.26
+   },
+   "a_vs_thermal_json_k": 0.025,
+   "min_k": {
+    "A": 64.7,
+    "B": 61.2,
+    "C": 63.9,
+    "D": 60.5,
+    "E": 62.8
+   },
+   "max_k": {
+    "A": 202.1,
+    "B": 180.4,
+    "C": 202.1,
+    "D": 180.4,
+    "E": 194.9
+   }
+  },
+  {
+   "key": "1",
+   "label": "Candidate 1",
+   "lat": -85.21421,
+   "lon": 36.48405,
+   "slope_deg": 3.33,
+   "slope_240_deg": 3.45,
+   "tilt_diff_deg": 1.15,
+   "sun_hours_own": 8325,
+   "sun_hours_grid": 63,
+   "mean_abs_err_k": {
+    "A": 0.0,
+    "B": 18.37,
+    "C": 81.48,
+    "D": 84.17,
+    "E": 81.35
+   },
+   "a_vs_thermal_json_k": 0.025,
+   "min_k": {
+    "A": 65.6,
+    "B": 61.2,
+    "C": 31.2,
+    "D": 29.8,
+    "E": 31.2
+   },
+   "max_k": {
+    "A": 202.4,
+    "B": 176.2,
+    "C": 182.1,
+    "D": 145.1,
+    "E": 183.6
+   }
+  },
+  {
+   "key": "2",
+   "label": "Candidate 2",
+   "lat": -84.68267,
+   "lon": 39.36419,
+   "slope_deg": 4.9,
+   "slope_240_deg": 4.75,
+   "tilt_diff_deg": 2.41,
+   "sun_hours_own": 9209,
+   "sun_hours_grid": 3157,
+   "mean_abs_err_k": {
+    "A": 0.0,
+    "B": 33.91,
+    "C": 15.99,
+    "D": 22.23,
+    "E": 18.48
+   },
+   "a_vs_thermal_json_k": 0.025,
+   "min_k": {
+    "A": 52.5,
+    "B": 61.9,
+    "C": 46.4,
+    "D": 54.4,
+    "E": 52.4
+   },
+   "max_k": {
+    "A": 140.2,
+    "B": 181.6,
+    "C": 139.7,
+    "D": 180.5,
+    "E": 170.0
+   }
+  },
+  {
+   "key": "3",
+   "label": "Candidate 3",
+   "lat": -85.46227,
+   "lon": 26.92421,
+   "slope_deg": 9.66,
+   "slope_240_deg": 11.02,
+   "tilt_diff_deg": 1.51,
+   "sun_hours_own": 7396,
+   "sun_hours_grid": 4525,
+   "mean_abs_err_k": {
+    "A": 0.0,
+    "B": 44.15,
+    "C": 10.54,
+    "D": 49.15,
+    "E": 11.73
+   },
+   "a_vs_thermal_json_k": 0.025,
+   "min_k": {
+    "A": 68.6,
+    "B": 57.3,
+    "C": 64.5,
+    "D": 51.1,
+    "E": 65.5
+   },
+   "max_k": {
+    "A": 227.1,
+    "B": 173.0,
+    "C": 227.0,
+    "D": 171.1,
+    "E": 233.6
+   }
+  },
+  {
+   "key": "4",
+   "label": "Candidate 4",
+   "lat": -85.45087,
+   "lon": 30.63981,
+   "slope_deg": 4.86,
+   "slope_240_deg": 6.76,
+   "tilt_diff_deg": 2.51,
+   "sun_hours_own": 7278,
+   "sun_hours_grid": 919,
+   "mean_abs_err_k": {
+    "A": 0.0,
+    "B": 26.71,
+    "C": 47.41,
+    "D": 63.26,
+    "E": 45.83
+   },
+   "a_vs_thermal_json_k": 0.025,
+   "min_k": {
+    "A": 62.0,
+    "B": 58.0,
+    "C": 42.7,
+    "D": 35.1,
+    "E": 44.4
+   },
+   "max_k": {
+    "A": 185.4,
+    "B": 173.3,
+    "C": 181.4,
+    "D": 135.8,
+    "E": 203.8
+   }
+  },
+  {
+   "key": "5",
+   "label": "Candidate 5",
+   "lat": -85.45895,
+   "lon": 28.78434,
+   "slope_deg": 8.53,
+   "slope_240_deg": 9.32,
+   "tilt_diff_deg": 1.71,
+   "sun_hours_own": 7257,
+   "sun_hours_grid": 4001,
+   "mean_abs_err_k": {
+    "A": 0.0,
+    "B": 39.63,
+    "C": 19.36,
+    "D": 56.15,
+    "E": 20.56
+   },
+   "a_vs_thermal_json_k": 0.025,
+   "min_k": {
+    "A": 69.4,
+    "B": 58.2,
+    "C": 63.2,
+    "D": 49.6,
+    "E": 63.9
+   },
+   "max_k": {
+    "A": 227.7,
+    "B": 173.2,
+    "C": 227.3,
+    "D": 168.6,
+    "E": 235.7
+   }
+  },
+  {
+   "key": "6",
+   "label": "Candidate 6",
+   "lat": -84.59004,
+   "lon": 39.46113,
+   "slope_deg": 7.52,
+   "slope_240_deg": 6.2,
+   "tilt_diff_deg": 4.24,
+   "sun_hours_own": 7940,
+   "sun_hours_grid": 6380,
+   "mean_abs_err_k": {
+    "A": 0.0,
+    "B": 30.12,
+    "C": 1.61,
+    "D": 32.17,
+    "E": 14.82
+   },
+   "a_vs_thermal_json_k": 0.025,
+   "min_k": {
+    "A": 71.4,
+    "B": 62.3,
+    "C": 70.9,
+    "D": 61.3,
+    "E": 68.5
+   },
+   "max_k": {
+    "A": 239.5,
+    "B": 182.6,
+    "C": 239.5,
+    "D": 182.5,
+    "E": 231.8
+   }
+  },
+  {
+   "key": "7",
+   "label": "Candidate 7",
+   "lat": -84.38719,
+   "lon": 19.31453,
+   "slope_deg": 3.82,
+   "slope_240_deg": 5.19,
+   "tilt_diff_deg": 2.19,
+   "sun_hours_own": 6377,
+   "sun_hours_grid": 4992,
+   "mean_abs_err_k": {
+    "A": 0.0,
+    "B": 18.34,
+    "C": 7.9,
+    "D": 18.84,
+    "E": 11.45
+   },
+   "a_vs_thermal_json_k": 0.026,
+   "min_k": {
+    "A": 57.5,
+    "B": 59.7,
+    "C": 56.0,
+    "D": 59.6,
+    "E": 58.2
+   },
+   "max_k": {
+    "A": 164.0,
+    "B": 184.3,
+    "C": 163.9,
+    "D": 184.1,
+    "E": 184.9
+   }
+  },
+  {
+   "key": "8",
+   "label": "Candidate 8",
+   "lat": -85.08253,
+   "lon": 37.26241,
+   "slope_deg": 2.14,
+   "slope_240_deg": 0.95,
+   "tilt_diff_deg": 3.02,
+   "sun_hours_own": 8231,
+   "sun_hours_grid": 5017,
+   "mean_abs_err_k": {
+    "A": 0.0,
+    "B": 14.46,
+    "C": 5.3,
+    "D": 10.86,
+    "E": 13.82
+   },
+   "a_vs_thermal_json_k": 0.025,
+   "min_k": {
+    "A": 59.8,
+    "B": 61.1,
+    "C": 57.6,
+    "D": 58.9,
+    "E": 60.0
+   },
+   "max_k": {
+    "A": 167.8,
+    "B": 177.5,
+    "C": 167.7,
+    "D": 177.4,
+    "E": 186.1
+   }
+  },
+  {
+   "key": "9",
+   "label": "Candidate 9",
+   "lat": -85.06913,
+   "lon": 36.18904,
+   "slope_deg": 8.36,
+   "slope_240_deg": 16.45,
+   "tilt_diff_deg": 13.32,
+   "sun_hours_own": 7562,
+   "sun_hours_grid": 4155,
+   "mean_abs_err_k": {
+    "A": 0.0,
+    "B": 33.53,
+    "C": 16.95,
+    "D": 45.25,
+    "E": 30.18
+   },
+   "a_vs_thermal_json_k": 0.025,
+   "min_k": {
+    "A": 71.9,
+    "B": 61.4,
+    "C": 66.2,
+    "D": 56.9,
+    "E": 70.1
+   },
+   "max_k": {
+    "A": 243.0,
+    "B": 177.7,
+    "C": 242.8,
+    "D": 177.3,
+    "E": 275.9
+   }
+  },
+  {
+   "key": "10",
+   "label": "Candidate 10",
+   "lat": -84.28955,
+   "lon": 44.90428,
+   "slope_deg": 1.1,
+   "slope_240_deg": 0.98,
+   "tilt_diff_deg": 0.85,
+   "sun_hours_own": 7482,
+   "sun_hours_grid": 5202,
+   "mean_abs_err_k": {
+    "A": 0.0,
+    "B": 7.06,
+    "C": 7.62,
+    "D": 11.66,
+    "E": 12.45
+   },
+   "a_vs_thermal_json_k": 0.025,
+   "min_k": {
+    "A": 62.5,
+    "B": 62.8,
+    "C": 59.8,
+    "D": 58.9,
+    "E": 58.1
+   },
+   "max_k": {
+    "A": 183.5,
+    "B": 185.6,
+    "C": 183.4,
+    "D": 185.4,
+    "E": 176.7
+   }
+  }
+ ],
+ "sane": true,
+ "add_slope_map": true,
+ "verdict": "add the 240 m slope map: it brings the median error from 32.2 K to 14.8 K (rule: at most half and at most 15 K)"
+}

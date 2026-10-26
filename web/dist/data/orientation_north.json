@@ -1,0 +1,104 @@
+{
+ "dem": "LDEM_75N_120M",
+ "criterion_min_depth_m": 500.0,
+ "engine_reading": [
+  1.0,
+  1.0
+ ],
+ "craters": [
+  {
+   "name": "Peary",
+   "lat": 88.63,
+   "lon": 24.4,
+   "diameter_km": 79.0
+  },
+  {
+   "name": "Byrd",
+   "lat": 85.43,
+   "lon": 10.07,
+   "diameter_km": 97.49
+  },
+  {
+   "name": "Hermite",
+   "lat": 86.17,
+   "lon": -93.32,
+   "diameter_km": 108.64
+  },
+  {
+   "name": "Rozhdestvenskiy",
+   "lat": 85.2,
+   "lon": -155.4,
+   "diameter_km": 177.0
+  },
+  {
+   "name": "Plaskett",
+   "lat": 82.1,
+   "lon": 174.3,
+   "diameter_km": 109.0
+  },
+  {
+   "name": "Hevesy",
+   "lat": 83.1,
+   "lon": 150.1,
+   "diameter_km": 49.5
+  }
+ ],
+ "craters_source": "IAU Gazetteer of Planetary Nomenclature (via the craters' Wikipedia articles)",
+ "readings": [
+  {
+   "x_sign": 1.0,
+   "y_sign": -1.0,
+   "pass": false,
+   "depths_m": {
+    "Peary": 122,
+    "Byrd": -491,
+    "Hermite": 1591,
+    "Rozhdestvenskiy": 313,
+    "Plaskett": 110,
+    "Hevesy": 713
+   }
+  },
+  {
+   "x_sign": -1.0,
+   "y_sign": -1.0,
+   "pass": false,
+   "depths_m": {
+    "Peary": -261,
+    "Byrd": 900,
+    "Hermite": -4,
+    "Rozhdestvenskiy": 29,
+    "Plaskett": -25,
+    "Hevesy": -77
+   }
+  },
+  {
+   "x_sign": 1.0,
+   "y_sign": 1.0,
+   "pass": true,
+   "depths_m": {
+    "Peary": 832,
+    "Byrd": 774,
+    "Hermite": 1890,
+    "Rozhdestvenskiy": 2430,
+    "Plaskett": 2430,
+    "Hevesy": 1310
+   }
+  },
+  {
+   "x_sign": -1.0,
+   "y_sign": 1.0,
+   "pass": false,
+   "depths_m": {
+    "Peary": 153,
+    "Byrd": -333,
+    "Hermite": 123,
+    "Rozhdestvenskiy": -23,
+    "Plaskett": 372,
+    "Hevesy": -195
+   }
+  }
+ ],
+ "verdict": "confirmed: only the engine's reading (x+1, y+1) puts every crater where the IAU does",
+ "code": 0,
+ "generated_utc": "2026-10-21T11:56:24+00:00"
+}

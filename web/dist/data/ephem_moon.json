@@ -1,0 +1,29 @@
+{
+ "generated_utc": "2026-10-19T15:51:43+00:00",
+ "engine_version": "0.13.2",
+ "ephemeris": "JPL DE440",
+ "frame": "IAU Moon-fixed",
+ "t0_tdb": 757339269.1839063,
+ "step_s": 3600.0,
+ "n": 43849,
+ "layout": [
+  "sun_x",
+  "sun_y",
+  "sun_z",
+  "sun_au",
+  "earth_x_km",
+  "earth_y_km",
+  "earth_z_km",
+  "q_x",
+  "q_y",
+  "q_z",
+  "q_w"
+ ],
+ "dtype": "float32 little-endian",
+ "span_utc": [
+  "2024-01-01T00:00+00:00",
+  "2028-12-31T23:59+00:00"
+ ],
+ "moon_radius_km": 1737.4,
+ "time": "TDB seconds past J2000; UTC -> TDB as engine/core/time.py"
+}

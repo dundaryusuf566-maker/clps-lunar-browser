@@ -1,0 +1,28 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+
+# Large data: downloaded by scripts, never committed
+data/kernels/*
+data/terrain/*
+data/cache/*
+!data/**/.gitkeep
+
+# Web
+web/node_modules/
+
+# Local and secret files: never published
+.env
+.env.*
+*.pem
+*.key
+*.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# web/dist (pre-built UI) and web/public/data (database) are tracked on purpose,
+# so `python -m api.server` works straight from a fresh clone, no Node.js needed.

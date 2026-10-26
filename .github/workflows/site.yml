@@ -1,0 +1,68 @@
+# Publishes the browser on GitHub Pages and checks every push.
+#
+# The site is exactly what the repository holds: the pre-built UI (web/dist) and the
+# data the scripts wrote (web/public/data). Nothing is rebuilt here, so what the jury
+# opens is what was tested locally.
+name: tests and site
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install "numpy>=1.24" "scipy>=1.10"
+      - name: Test suite (without the DE440 kernels the 3 SPICE tests are skipped)
+        run: python tests/run_all.py
+      - name: The registered forecast is unchanged
+        run: |
+          if [ -f web/public/data/forecast.json ]; then python scripts/verify_forecast.py; else echo "no forecast yet"; fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Browser calculations against the engine (power budget, Moon sky)
+        working-directory: web
+        run: |
+          npm install --no-audit --no-fund
+          npm test
+
+  site:
+    if: github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble the site
+        run: |
+          mkdir _site
+          cp -r web/dist/. _site/
+          cp -r web/public/data _site/data
+          touch _site/.nojekyll
+          du -sh _site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

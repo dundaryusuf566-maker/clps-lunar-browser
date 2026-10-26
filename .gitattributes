@@ -1,0 +1,9 @@
+# Keep data files byte-for-byte: Git must never convert line endings in them.
+*.bin   binary
+*.npz   binary
+*.png   binary
+*.woff  binary
+*.img   binary
+*.ots   binary
+# Text files: stored with LF in the repository, whatever the computer.
+*       text=auto

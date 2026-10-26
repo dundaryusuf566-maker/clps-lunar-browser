@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clps-lunar-browser"
+version = "0.19.1"
+description = "Modular Earth-Moon flight dynamics engine for the NASA Space Apps CLPS Lunar Mission Browser challenge"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+]
+
+[project.optional-dependencies]
+spice = ["spiceypy>=6.0"]
+plot = ["matplotlib>=3.7"]
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+include = ["engine*", "api*"]
+
+[tool.setuptools.package-data]
+"engine.surface" = ["horizons/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
