@@ -57,6 +57,8 @@ jobs:
         run: |
           mkdir _site
           cp -r web/dist/. _site/
+          # the data comes from web/public/data, never from a copy an older build left in web/dist
+          rm -rf _site/data
           cp -r web/public/data _site/data
           touch _site/.nojekyll
           du -sh _site
