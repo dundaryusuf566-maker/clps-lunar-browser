@@ -12,7 +12,7 @@ The central question: **"I want to land at this site. If I launch on which day d
 
 - **Browse and plan:** 1,830 Earth-to-Moon transfers of 2026 (full force model, JPL DE440), landing analysis for seven CLPS-relevant sites, a reverse-query mission planner ("land here between these dates with at least N days of sunlight").
 - **Anywhere:** click any point of the Moon. The browser computes, hour by hour and with no server, the Sun and Earth in its sky, daylight, landing windows, Deep Space Network contact, eclipses, ground temperature and a power budget. Near the poles it uses LOLA terrain horizons and slopes. Everything can be downloaded as CSV.
-- **Forecast: Griffin Mission One:** a forecast of when and where Astrobotic's Griffin-1 can land, registered in git before the launch.
+- **Forecast: Griffin Mission One:** a forecast of when and where Astrobotic's Griffin-1 can land, registered before the launch with timestamps kept by others ([Registration](#registration)).
 - **3D view:** the Griffin-1 region on real LOLA terrain with shadows computed on the GPU, and a "journey" view of IM-1, IM-2 and Griffin-1 from launch to touchdown.
 - **Validation:** every check below, passed or failed.
 
@@ -102,7 +102,7 @@ python scripts/build_slope_map.py --pole north
 
 What each one does:
 
-- **`build_forecast`** designs ~2,400 transfers and scans 1,681 points in the Mons Mouton-Nobile region (~25 min on 8 cores, resumable). It writes `web/public/data/forecast.json` with a timestamp and a SHA-256 digest. Commit and push this file to GitHub **before the launch**: the commit date is the public record that the forecast came first. `verify_forecast` checks that the file has not changed since.
+- **`build_forecast`** designs ~2,400 transfers and scans 1,681 points in the Mons Mouton-Nobile region (~25 min on 8 cores, resumable). It writes `web/public/data/forecast.json` with a timestamp and a SHA-256 digest. Publish it **before the launch**. A commit's date is set by the committer's own computer and proves nothing on its own; the record is a GitHub Release and an archive.org copy (see [Registration](#registration)). `verify_forecast` checks that the file has not changed since.
 - **`build_scene3d`** makes the **3D view's** data (`scene3d.json` + `scene3d.bin`, ~2 MB, 1-2 min): the region's terrain, hourly Sun and Earth directions, and the engine's reference values for the shadow self-check. Run it after the forecast, because it uses the forecast's top 10 candidates as check points.
 - **`build_journeys`** makes the **3D journey's** data (`journeys.json` + `moon_cap.bin`, ~1 min). It designs no new transfers; it reuses the validation and forecast results under `data/cache`.
 - **`build_thermal`** computes the surface temperature at the candidates and the sunlight the power calculator uses (`thermal.json`).
@@ -220,6 +220,24 @@ Astrobotic's Griffin-1 mission (CLPS, last quarter of 2026, Falcon Heavy) is goi
 - **Where:** for each of 1,681 points 2 km apart in an 80 × 80 km region: its own terrain horizon, landing moments, sunlight after landing, Earth visibility and slope. The criteria are those NASA used to select VIPER's site: illumination, Earth visibility, slope. The result is a ranked list and map of the places best suited by these criteria.
 
 **Honesty rules:** announced facts are listed with their sources, our assumptions separately. The map does not say "Astrobotic will land here"; metre-scale boulders, the payloads' goals and the company's own rules are invisible on a 120 m map. The calibration from past missions is stated too: the terrain-aware rules found IM-1's real landing within 36 minutes and were 1 day late for IM-2 (same point). Forecast landing dates should therefore be read with up to ±2 days of uncertainty (the page derives this from the calibration data, rounded up).
+
+### Registration
+
+The Griffin-1 forecast was made and published before the launch. A commit's date comes from the committer's own clock and proves nothing, so the record rests on timestamps kept by others:
+
+| Record | Kept by | Time (UTC) |
+|---|---|---|
+| [GitHub Release `griffin-1-forecast`](https://github.com/dundaryusuf566-maker/clps-lunar-browser/releases/tag/griffin-1-forecast), `forecast.json` attached | GitHub's server | 2026-10-27 18:06 |
+| [archive.org copy of the file at commit `fbc2b6b`](https://web.archive.org/web/20261027192746/https://raw.githubusercontent.com/dundaryusuf566-maker/clps-lunar-browser/fbc2b6bb7f96caa293df7178dfa92ac63d37d0f2/web/public/data/forecast.json) | Internet Archive | 2026-10-27 19:27:46 |
+| [archive.org copy of the Release page](https://web.archive.org/web/20261027192833/https://github.com/dundaryusuf566-maker/clps-lunar-browser/releases/tag/griffin-1-forecast) | Internet Archive | 2026-10-27 19:28:33 |
+| `web/public/data/forecast.json.ots`: OpenTimestamps proof of the file's SHA-256 | Bitcoin blockchain | stamped 2026-10-27; `ots upgrade` / `ots verify` completes and checks it |
+
+- SHA-256 of the forecast content `{mission, time, region}`: `c87ac8d7a9756a70ed4d80d5f58c8c3ae8b0d3a68bbf4b067e9f7215b712265a` (`python scripts/verify_forecast.py`)
+- SHA-256 of the whole file (what the OpenTimestamps proof covers): `e813009f9b6685d3bf1982fa840121124542ad64c900f8152790fd178d074c3d` (`certutil -hashfile forecast.json SHA256` on Windows, `sha256sum` elsewhere)
+- Made from code commit `889f6a1` with no uncommitted changes (`meta.git_commit`, `meta.git_code_dirty`); engine 0.19.1, JPL DE440, LOLA LDEM_75S_120M.
+- **Earlier version, stated openly:** commit `2544b05` (pushed 2026-10-26) held a forecast made on 2026-10-18 with uncommitted code (SHA-256 `3376f805…7726`). We regenerated it from committed code. The only content difference is `time.calibration`, which now also lists Blue Ghost Mission 1's retrodiction (miss 1.41 days), added to the validation after 18 October; it is descriptive and not used in the prediction. Launch windows, landing times, region candidates and ranking are identical.
+
+From now on `forecast.json` is not changed; every push re-checks its SHA-256 in CI. A new forecast (e.g. for IM-3) would be a separate file and a separate Release.
 
 ## Ground stations, energy and shareable link
 

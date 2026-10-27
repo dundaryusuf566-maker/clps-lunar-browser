@@ -77,7 +77,7 @@ python scripts/build_slope_map.py --pole north
 
 GitHub'a koyma, sitenin yayınlanması ve tahminin kayda geçirilmesi adım adım: [`docs/KAYIT.md`](docs/KAYIT.md).
 
-İlk komut ~2.400 transfer tasarlar ve Mons Mouton-Nobile bölgesinde 1.681 noktayı tarar (8 çekirdekte ~25 dk, kaldığı yerden devam eder). Sonucu `web/public/data/forecast.json` dosyasına zaman damgası ve SHA-256 özetiyle yazar. Bu dosyayı **fırlatmadan önce** GitHub'a commit edip push edin: commit tarihi, tahminin önceden yapıldığının kamuya açık kaydıdır. İkinci komut dosyanın kayıttan sonra değişmediğini kontrol eder.
+İlk komut ~2.400 transfer tasarlar ve Mons Mouton-Nobile bölgesinde 1.681 noktayı tarar (8 çekirdekte ~25 dk, kaldığı yerden devam eder). Sonucu `web/public/data/forecast.json` dosyasına zaman damgası ve SHA-256 özetiyle yazar. Bu dosya **fırlatmadan önce** yayınlanmalı. Bir commit'in tarihi commit'i yapanın kendi bilgisayarından gelir ve tek başına hiçbir şey kanıtlamaz; kayıt, bir GitHub Release'i ve archive.org kopyasıdır (aşağıda [Kayıt](#kayıt)). İkinci komut dosyanın kayıttan sonra değişmediğini kontrol eder.
 
 **Doğrulama sayfasını üret** (NASA karşılaştırması + uçmuş görevlerin geriye dönük testi + test paketi):
 
@@ -183,6 +183,24 @@ Astrobotic'in Griffin-1 görevi (CLPS, 2026'nın son çeyreği, Falcon Heavy) No
 - **Nerede:** 80 × 80 km'lik bölgede 2 km aralıklı 1.681 noktanın her biri için kendi arazi ufku, iniş anları, inişten sonraki güneş, Dünya görünürlüğü ve eğim. Ölçütler NASA'nın VIPER alanını seçerken kullandıklarıyla aynı: aydınlanma, Dünya görünürlüğü, eğim. Sonuç, bu ölçütlere göre en uygun yerlerin sıralı listesi ve haritası.
 
 **Dürüstlük kuralları:** Duyurulan bilgiler kaynaklarıyla, bizim varsayımlarımız ayrı listelenir. Harita "Astrobotic şuraya inecek" demez; metre ölçeğindeki kayalar, yükün hedefleri ve şirketin kuralları 120 m'lik haritada görünmez. Geçmiş görevlerden gelen kalibrasyon da yazılır: arazili kurallar IM-1'de gerçek inişi 36 dakika farkla buldu, IM-2'de (aynı nokta) 1 gün geç kaldı. Bu yüzden tahmin edilen iniş tarihleri ±2 güne kadar belirsizlikle okunmalı (sayfa bunu kalibrasyon verisinden yukarı yuvarlayarak hesaplar).
+
+### Kayıt
+
+Griffin-1 tahmini fırlatmadan önce yapıldı ve yayınlandı. Commit tarihi commit'i yapanın kendi saatinden gelir ve hiçbir şey kanıtlamaz; bu yüzden kayıt, saatini başkalarının tuttuğu zaman damgalarına dayanır:
+
+| Kayıt | Saati tutan | Zaman (UTC) |
+|---|---|---|
+| [GitHub Release `griffin-1-forecast`](https://github.com/dundaryusuf566-maker/clps-lunar-browser/releases/tag/griffin-1-forecast), `forecast.json` ekli | GitHub sunucusu | 2026-10-27 18:06 |
+| [Dosyanın `fbc2b6b` commit'indeki halinin archive.org kopyası](https://web.archive.org/web/20261027192746/https://raw.githubusercontent.com/dundaryusuf566-maker/clps-lunar-browser/fbc2b6bb7f96caa293df7178dfa92ac63d37d0f2/web/public/data/forecast.json) | Internet Archive | 2026-10-27 19:27:46 |
+| [Release sayfasının archive.org kopyası](https://web.archive.org/web/20261027192833/https://github.com/dundaryusuf566-maker/clps-lunar-browser/releases/tag/griffin-1-forecast) | Internet Archive | 2026-10-27 19:28:33 |
+| `web/public/data/forecast.json.ots`: dosyanın SHA-256'sının OpenTimestamps kanıtı | Bitcoin zinciri | 2026-10-27'de damgalandı; `ots upgrade` / `ots verify` tamamlar ve doğrular |
+
+- Tahmin içeriğinin `{mission, time, region}` SHA-256'sı: `c87ac8d7a9756a70ed4d80d5f58c8c3ae8b0d3a68bbf4b067e9f7215b712265a` (`python scripts/verify_forecast.py`)
+- Dosyanın tamamının SHA-256'sı (OpenTimestamps kanıtının kapsadığı): `e813009f9b6685d3bf1982fa840121124542ad64c900f8152790fd178d074c3d` (Windows'ta `certutil -hashfile forecast.json SHA256`, diğerlerinde `sha256sum`)
+- Commit edilmemiş değişiklik olmadan `889f6a1` kodundan üretildi (`meta.git_commit`, `meta.git_code_dirty`); motor 0.19.1, JPL DE440, LOLA LDEM_75S_120M.
+- **Önceki sürüm, açıkça:** `2544b05` commit'i (26 Ekim 2026'da gönderildi) 18 Ekim'de commit edilmemiş kodla üretilmiş bir tahmin içeriyordu (SHA-256 `3376f805…7726`). Tahmini commit edilmiş kodla yeniden ürettik. İçerikteki tek fark `time.calibration`: 18 Ekim'den sonra doğrulamaya eklenen Blue Ghost Mission 1'in geriye dönük sapmasını (1.41 gün) da listeliyor; bilgi amaçlı, tahminde kullanılmıyor. Fırlatma pencereleri, iniş zamanları, bölge adayları ve sıralama birebir aynı.
+
+Bundan sonra `forecast.json` değiştirilmez; her push'ta CI SHA-256'yı yeniden kontrol eder. Yeni bir tahmin (ör. IM-3) ayrı bir dosya ve ayrı bir Release olur.
 
 ## Yer istasyonları, enerji ve paylaşılabilir link
 
