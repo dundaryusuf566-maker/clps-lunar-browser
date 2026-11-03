@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node tests/power.check.mjs && node tests/sky.check.mjs && node tests/site.check.mjs && node tests/horizon.check.mjs && node tests/regolith.check.mjs && node tests/slope.check.mjs && node tests/csv.check.mjs"
+    "test": "node tests/power.check.mjs && node tests/sky.check.mjs && node tests/site.check.mjs && node tests/horizon.check.mjs && node tests/regolith.check.mjs && node tests/slope.check.mjs && node tests/csv.check.mjs && node tests/earthvis.check.mjs"
   },
   "dependencies": {
     "d3-array": "^3.2.4",

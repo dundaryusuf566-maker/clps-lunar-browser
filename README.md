@@ -11,7 +11,7 @@ The central question: **"I want to land at this site. If I launch on which day d
 **Pages of the website**
 
 - **Browse and plan:** 1,830 Earth-to-Moon transfers of 2026 (full force model, JPL DE440), landing analysis for seven CLPS-relevant sites, a reverse-query mission planner ("land here between these dates with at least N days of sunlight").
-- **Anywhere:** click any point of the Moon. The browser computes, hour by hour and with no server, the Sun and Earth in its sky, daylight, landing windows, Deep Space Network contact, eclipses, ground temperature and a power budget. Near the poles it uses LOLA terrain horizons and slopes. Everything can be downloaded as CSV.
+- **Anywhere:** click any point of the Moon. The browser computes, hour by hour and with no server, the Sun and Earth in its sky, daylight, landing windows, direct-to-Earth contact windows and Deep Space Network contact, eclipses, ground temperature and a power budget, plus maps of where the Earth (and the Sun with it) is in view. Near the poles it uses LOLA terrain horizons and slopes. Everything can be downloaded as CSV.
 - **Forecast: Griffin Mission One:** a forecast of when and where Astrobotic's Griffin-1 can land, registered before the launch with timestamps kept by others ([Registration](#registration)).
 - **3D view:** the Griffin-1 region on real LOLA terrain with shadows computed on the GPU, and a "journey" view of IM-1, IM-2 and Griffin-1 from launch to touchdown.
 - **Validation:** every check below, passed or failed.
@@ -31,7 +31,9 @@ The central question: **"I want to land at this site. If I launch on which day d
 | Regolith model vs Diviner at the south pole (12 points, 414 slots) | **fail**: median 21.4 K (limit 10 K); nights agree (−2.5 K), sunlit hours run ~30 K cold |
 | Terrain light and heat vs Ingersoll et al. (1992) | **pass**: 170.76 vs 170.44 K (0.19%) |
 | Browser vs engine: ephemeris, eclipses (NASA catalogue), horizons, temperatures | **pass** (Sun 0.00002°, 12/12 eclipses within 4.3 min, temperatures within 0.05 K) |
-| Python test suite | 99 tests (3 need SPICE) |
+| Communication maps: level sphere (check A, DE440) | **pass**: Earth in view 100% / 0% at the near / far centre, 49.4% / 48.0% at the limbs |
+| Communication maps: 5 km grid against each point's own LOLA horizon (check B, 300 points per pole) | **fail**: median 0.10 / 0.07 points (limit 5), but 90th percentile 15.04 / 22.2 (limit 15), south / north; flat horizon median 14.3 / 9.3 |
+| Python test suite | 105 tests (3 need SPICE) |
 
 ## Quick start (Windows command line)
 
@@ -89,6 +91,7 @@ python scripts/build_ephemeris_table.py --spice
 python scripts/check_polar_orientation.py --pole south
 python scripts/build_horizon_grid.py --spice
 python scripts/build_slope_map.py
+python scripts/build_earth_visibility.py --spice
 ```
 
 For the north pole (optional, +116 MB download):
@@ -98,6 +101,7 @@ python scripts/download_terrain.py --north
 python scripts/check_polar_orientation.py --pole north
 python scripts/build_horizon_grid.py --spice --pole north
 python scripts/build_slope_map.py --pole north
+python scripts/build_earth_visibility.py --spice --pole north
 ```
 
 What each one does:
@@ -110,6 +114,7 @@ What each one does:
 - **`check_polar_orientation`** confirms with named craters which way round the polar map reads (below); `build_horizon_grid` refuses to run until it has passed.
 - **`build_horizon_grid`** makes the LOLA horizon grid and the shaded relief map of a polar cap (~10 min, ~24 MB of tiles).
 - **`build_slope_map`** makes the 240 m slope map of a polar cap (~8 s, 25.7 MB of tiles).
+- **`build_earth_visibility`** makes the communication maps of a polar cap from its horizon grid (~2-5 min, 100 kB) and runs their pre-registered checks; check B needs the LOLA map (below).
 
 Putting the project on GitHub, publishing the site and registering the forecast step by step: [`docs/KAYIT.md`](docs/KAYIT.md) (in Turkish).
 
@@ -275,6 +280,20 @@ Left out of the browser's temperature (stated on the page): the point's own hori
 
 **CSV export** (`web/src/lib/csvExport.ts`, v0.18): the page's numbers can be downloaded as two files. Hourly series: time (UTC), the Sun's elevation / azimuth / the horizon in that direction, the share of its disc above the horizon, sunlight on a Sun-facing surface (W/m²), the Earth's elevation / azimuth / horizon, DSN stations in view, surface temperature. Events: daylight periods, landing windows and eclipses in time order. The `#` lines at the top of each file state the point, the period, the ephemeris, the kind of horizon and ground, the landing rule, the assumptions and a link to the same view, so a file that leaves the page still says where it came from (pandas: `read_csv(..., comment="#")`). `web/tests/csv.check.mjs` tests that every number in the files is the page's own, that the hours line up with the temperature run, and that the event counts match the page.
 
+**Communication: direct-to-Earth contact windows and maps** (v0.20). The challenge asks for direct-to-Earth communication windows; until v0.19 the page gave them only as a share of the time and a green bar. Now:
+
+- **Contact windows** (`siteAnalysis.ts`, the "Earth contact" table and the events CSV): every interval with the Earth's centre above the horizon *in the Earth's own direction* (LOLA where a polar grid covers the point), with its length, the Earth's highest elevation above that horizon, the share of it with a DSN complex in view and which complexes, and the share with the Sun up too (power and link together).
+- **A drawing that could mislead, fixed:** the Sun / Earth chart shaded only the terrain towards the Sun, and the Earth's line was read against it. At the poles the Earth stays within a few degrees of the horizon, so the terrain in its own direction decides; it is now drawn as a dashed line (the numbers and the DSN bar were already computed against the right horizon).
+- **Maps** (the "Map shows" switch on the Anywhere maps): *Earth in view*, *Sun + Earth* together, and *DSN contact*. Whole Moon: computed in the browser for the chosen period on level ground (`commsMap.ts`, 2° cells): the near side, the far side and the libration band along the limbs. Polar caps: computed by the engine with the LOLA horizon of every 5 km grid point, hour by hour over twelve months from 1 November 2026 (`engine/surface/earth_visibility.py`, `scripts/build_earth_visibility.py`). Near the poles the Earth skims the horizon and a crater floor and a rim 5 km away can differ from never to always. The Forecast's region map gained *Earth 2° above the terrain while the Sun is up*.
+- "Earth in view" means its centre is above the terrain; it says nothing about antennas, power or DSN scheduling. The DSN's 10° mask is our assumption, and for the polar maps the DSN geometry is taken at the pole (it changes by under 0.1° across the cap).
+
+**Pre-registered checks** (written 3 November 2026 into `engine/surface/earth_visibility.py`, before any map was computed):
+
+- **A. Level sphere:** over the map's twelve months, Earth in view 100% at 0° N 0° E, 0% at 0° N 180° E, and strictly between at 0° N 90° E and 90° W (the libration in longitude). **Result in the browser with the DE440 table:** 100%, 0%, 49.4% and 48.0%: **pass**. With the analytic ephemeris the limb part cannot pass: its Moon moves on a circular orbit, so the sub-Earth longitude moves only 0.14-0.61° and there is no libration in longitude (east limb 69.6%, west 0%); the CI test therefore checks only the near / far part with it, and the limbs are judged with DE440.
+- **B. Grid against each point's own horizon:** at 300 random points of each cap, |grid − own| for the share of the period with the Earth above the terrain: median ≤ 5 and 90th percentile ≤ 15 percentage points, and better than a flat horizon. **Result (DE440, LOLA): FAIL at both poles.** South: median 0.10, 90th percentile **15.04** (limit 15), flat horizon median 14.3. North: median 0.07, 90th percentile **22.2**, flat horizon median 9.3. The median and the comparison with a flat horizon pass by a wide margin; the tail does not: at one point in ten the grid's share is more than 15 (south) or 22 (north) percentage points from the point's own. The south misses its limit by 0.04 points; the limit stays as written and the check stays failed. The page says so under the map.
+- *Reading the result (after the check, not part of it):* about half of the grid points are saturated, never (south 11,951 of 26,317, north 10,819) or always (2,188 / 3,048) seeing the Earth, so most random points have no error at all and the median is small for that reason. The error sits where the blended horizon mixes a rim with a floor, as for the Sun hours (p90 11 / 15 points there). So the maps are right about *where* the Earth is visible and where it is not; for a single point near a rim, the Anywhere analysis with the point's own LOLA horizon (Forecast candidates) or a dedicated horizon is the number to trust. A denser grid is the obvious remedy but was not tried for this release.
+- Consistency (`web/tests/earthvis.check.mjs`): the whole-Moon grid equals the point analysis at six cells (worst 0.000 pp for Earth and Sun + Earth, 0.07 pp for DSN); with the same ephemeris the point analysis using the grid horizon reproduces the engine's polar map at its sample points within 1 pp (0.22 pp at worst on a development build). `web/tests/site.check.mjs` 7: the contact windows add up to the "Earth in view" share within 1 pp and every sample is on the right side.
+
 Limits (stated on the page): below 75° the horizon is level for now; the landing window does not include a transfer or the orbit plane (those are in Browse and plan); eclipses are geometric (the atmosphere widens the real shadow by ~2%).
 
 ## 3D view
@@ -414,7 +433,7 @@ Findings:
 
 **3. Diviner polar comparison:** above, in the Regolith temperatures section. `python scripts/diviner_polar_check.py --spice` (needs the network, ~5-10 min, ~15 MB of traffic). It does not crash if the connection drops: what has been read is saved to `data/cache/diviner_pcp_points.json` and the same command continues from the remaining files (if problems persist, `--workers 2`).
 
-**4. Test suite:** `pytest` (or `python tests/run_all.py`): 99 tests, all pass with DE440 installed (without it 3 are skipped). Browser-side: `cd web && npm test` (power budget, sky, site analysis, horizon grid, regolith, slope map, CSV export).
+**4. Test suite:** `pytest` (or `python tests/run_all.py`): 105 tests, all pass with DE440 installed (without it 3 are skipped). Browser-side: `cd web && npm test` (power budget, sky, site analysis, horizon grid, regolith, slope map, CSV export, communication maps).
 
 | Test | What it proves |
 |---|---|

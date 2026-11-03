@@ -2,13 +2,15 @@ import { scaleLinear, scaleUtc } from "d3-scale";
 import { utcFormat } from "d3-time-format";
 import { useEffect, useMemo, useState } from "react";
 import { fmtNum } from "../lib/format";
-import { BASE, useHorizonGridMeta, useSlopeMapMeta, useWidth, type Loadable } from "../lib/hooks";
+import { BASE, useEarthVis, useHorizonGridMeta, useSlopeMapMeta, useWidth, type Loadable } from "../lib/hooks";
+import { nodeValue, valueNear, worldGrid, worldStepH, worldValue, type EarthVis, type WorldGrid } from "../lib/commsMap";
 import { covers, horizonAt, latLonOfPlane, planeXY, tilesDir, tilesFor, type GridHorizon, type HorizonGridMeta } from "../lib/horizonGrid";
 import { analyzeSite, dsnNames, type SiteResult } from "../lib/siteAnalysis";
 import { normalAt, slopeTileFor, type SlopeMapMeta } from "../lib/slopeMap";
 import type { Ephem } from "../lib/sky";
 import { numParam, readParams, writeParams } from "../lib/urlstate";
 import type { Site } from "../types";
+import { cellImage, CommsLegend, LayerSwitch, pct, useCommsFill, type LayerChoice } from "./CommsLayer";
 import { GroundSection } from "./GroundSection";
 import { HorizonChart } from "./HorizonChart";
 
@@ -36,6 +38,8 @@ export function AnywherePage({ ephem, sites }: { ephem: Loadable<Ephem | null>; 
   const grids = { south: gs.status === "ready" ? gs.data : null, north: gn.status === "ready" ? gn.data : null };
   const grid = lat < 0 ? grids.south : grids.north;
   const ss = useSlopeMapMeta("s"), sn = useSlopeMapMeta("n");
+  const vs = useEarthVis("s"), vn = useEarthVis("n");
+  const vis = { south: vs.status === "ready" ? vs.data : null, north: vn.status === "ready" ? vn.data : null };
   const slope = lat < 0 ? (ss.status === "ready" ? ss.data : null) : (sn.status === "ready" ? sn.data : null);
   useEffect(() => writeParams({ lat: lat.toFixed(4), lon: lon.toFixed(4), from, days }), [lat, lon, from, days]);
 
@@ -53,6 +57,8 @@ export function AnywherePage({ ephem, sites }: { ephem: Loadable<Ephem | null>; 
   const e = ephem.data;
   const span = e.meta.span_utc.map((s) => Date.parse(s.endsWith("Z") || s.includes("+") ? s : `${s}Z`));
   const preset = sites.find((s) => Math.abs(s.lat_deg - lat) < 1e-3 && Math.abs(s.lon_deg - lon) < 1e-3);
+  const startMs = Date.parse(`${from}T00:00:00Z`);
+  const period = Number.isFinite(startMs) && startMs >= span[0] && startMs + days * 86400e3 <= span[1] ? { startMs, days } : null;
   return (
     <div className="validation">
       <section className="panel" aria-labelledby="any-title">
@@ -68,7 +74,8 @@ export function AnywherePage({ ephem, sites }: { ephem: Loadable<Ephem | null>; 
               which of NASA's Deep Space Network stations can hear it, and when the Earth eclipses the Sun. Everything
               runs here from a table of JPL's ephemeris; nothing is sent anywhere.
             </p>
-            <MoonPicker lat={lat} lon={lon} sites={sites} grids={grids} onPick={(la, lo) => { setLat(la); setLon(lo); }} />
+            <MoonPicker lat={lat} lon={lon} sites={sites} grids={grids} vis={vis} e={e} period={period}
+              onPick={(la, lo) => { setLat(la); setLon(lo); }} />
           </div>
           <div>
             <div className="power-grid">
@@ -238,9 +245,11 @@ function Analysis({ e, lat, lon, from, days, span, grid, slope }: {
 }
 
 type Pole = "south" | "north";
-function MoonPicker({ lat, lon, sites, grids, onPick }: {
-  lat: number; lon: number; sites: Site[]; grids: Record<Pole, HorizonGridMeta | null>; onPick: (lat: number, lon: number) => void;
+function MoonPicker({ lat, lon, sites, grids, vis, e, period, onPick }: {
+  lat: number; lon: number; sites: Site[]; grids: Record<Pole, HorizonGridMeta | null>; vis: Record<Pole, EarthVis | null>;
+  e: Ephem; period: { startMs: number; days: number } | null; onPick: (lat: number, lon: number) => void;
 }) {
+  const [layer, setLayer] = useState<LayerChoice>("none");
   const ok = (p: Pole) => !!grids[p]?.relief_png && !!grids[p]?.relief_extent_km;
   const poles = (["south", "north"] as Pole[]).filter(ok);
   const [view, setView] = useState<"moon" | Pole>(() => poles.find((p) => covers(grids[p]!, lat)) ?? "moon");
@@ -250,14 +259,28 @@ function MoonPicker({ lat, lon, sites, grids, onPick }: {
       {poles.map((p) => <button key={p} aria-pressed={view === p} onClick={() => setView(p)}>{p === "south" ? "South" : "North"} pole (LOLA)</button>)}
     </div>
   );
-  if (view !== "moon" && ok(view)) return <>{tabs}<PolarPicker key={view} lat={lat} lon={lon} sites={sites} grid={grids[view]!} onPick={onPick} /></>;
-  return <>{tabs}<WorldPicker lat={lat} lon={lon} sites={sites} onPick={onPick} /></>;
+  const polarView = view !== "moon" && ok(view);
+  const visHere = polarView ? vis[view as Pole] : null;
+  const canLayer = polarView ? !!visHere : !!period;
+  const sw = canLayer && <LayerSwitch value={layer} onChange={setLayer} noneLabel={polarView ? "Relief" : "Plain"} />;
+  if (polarView) {
+    return <>{tabs}{sw}<PolarPicker key={view} lat={lat} lon={lon} sites={sites} grid={grids[view as Pole]!} onPick={onPick}
+      vis={visHere} layer={visHere ? layer : "none"} /></>;
+  }
+  return <>{tabs}{sw}<WorldPicker lat={lat} lon={lon} sites={sites} onPick={onPick} e={e} period={period} layer={period ? layer : "none"} /></>;
 }
 
-function PolarPicker({ lat, lon, sites, grid, onPick }: {
+function PolarPicker({ lat, lon, sites, grid, onPick, vis, layer }: {
   lat: number; lon: number; sites: Site[]; grid: HorizonGridMeta; onPick: (lat: number, lon: number) => void;
+  vis: EarthVis | null; layer: LayerChoice;
 }) {
   const [ref, width] = useWidth<HTMLDivElement>();
+  const { fill } = useCommsFill();
+  const href = useMemo(() => {
+    if (!vis || layer === "none") return "";
+    const L = layer;
+    return cellImage(vis.meta.n, vis.meta.n, (r, c) => nodeValue(vis, L, r, c), fill);
+  }, [vis, layer, fill]);
   const [x0, x1, y0, y1] = grid.relief_extent_km!;
   const PAD = 26, W = Math.max(0, Math.min(width, 640) - 2 * PAD);
   const px = (X: number) => ((X - x0) / (x1 - x0)) * W;
@@ -280,6 +303,11 @@ function PolarPicker({ lat, lon, sites, grid, onPick }: {
           <g transform={`translate(${PAD},${PAD})`}>
           <defs><clipPath id={`cap-${grid.pole}`}><circle cx={cx} cy={cy} r={px(rho) - cx} /></clipPath></defs>
           <image href={`${BASE}data/${grid.relief_png}`} x={0} y={0} width={W} height={W} preserveAspectRatio="none" clipPath={`url(#cap-${grid.pole})`} />
+          {href && vis && (() => {
+            const m = vis.meta, lo = m.x0_km - m.spacing_km / 2, hi = m.x0_km + (m.n - 0.5) * m.spacing_km;
+            return <image href={href} x={px(lo)} y={py(lo)} width={px(hi) - px(lo)} height={py(hi) - py(lo)} preserveAspectRatio="none"
+              style={{ imageRendering: "pixelated" }} opacity={0.85} clipPath={`url(#cap-${grid.pole})`} />;
+          })()}
           {[85, 80].filter((a) => a > grid.min_abs_lat).map((a) => (
             <g key={a}><circle cx={cx} cy={cy} r={px(ring(a)) - cx} fill="none" stroke="#ffffff88" strokeDasharray="3 4" />
               <text className="map-region" x={cx + 4} y={cy - (px(ring(a)) - cx) + 12} fill="#fff">{a}° {grid.pole === "north" ? "N" : "S"}</text></g>
@@ -302,12 +330,41 @@ function PolarPicker({ lat, lon, sites, grid, onPick }: {
         </svg>
       )}
       <div className="key"><span className="k-moon">Known sites</span><span className="k-terrain">LOLA {grid.dem}, shaded relief; horizons every {fmtNum(grid.spacing_km, 0)} km</span></div>
+      {vis && layer !== "none" && <PolarLegend vis={vis} layer={layer} fill={fill} lat={lat} lon={lon} />}
     </div>
   );
 }
 
-function WorldPicker({ lat, lon, sites, onPick }: { lat: number; lon: number; sites: Site[]; onPick: (lat: number, lon: number) => void }) {
+function PolarLegend({ vis, layer, fill, lat, lon }: { vis: EarthVis; layer: Exclude<LayerChoice, "none">; fill: (v: number) => string; lat: number; lon: number }) {
+  const m = vis.meta, near = valueNear(vis, layer, lat, lon), b = m.check_b;
+  const here = near ? `At the chosen point (grid point ${fmtNum(near.km, 1)} km away): ${pct(near.pct)}.` : null;
+  const period = `${dayFmt(new Date(`${m.period_utc[0]}Z`))} to ${dayFmt(new Date(`${m.period_utc[1]}Z`))}`;
+  return (
+    <CommsLegend layer={layer} fill={fill} here={here} note={<>
+      Share of the twelve months {period} ({m.ephemeris}), hour by hour, at each {fmtNum(m.spacing_km, 0)} km grid point with its own LOLA
+      horizon ({m.dem}); computed by the engine (scripts/build_earth_visibility.py). Earth in view means its centre is above the
+      terrain in its direction; it does not mean an antenna, power or a DSN booking. DSN: a complex sees the Moon above 10° (our assumption).{" "}
+      {b ? <>Checked before use (pre-registered): at {b.points} random points the grid's Earth-in-view share is {fmtNum(b.median_pp, 1)} points
+        from each point's own horizon (median; 90% within {fmtNum(b.p90_pp, 1)}; limits 5 and 15), a flat horizon {fmtNum(b.flat_median_pp, 1)}:{" "}
+        <strong>{b.pass ? "pass" : "FAIL"}</strong>.</> : <>The grid has not been checked against each point's own horizon ({m.check_b_note}).</>}{" "}
+      Level-sphere check: <strong>{m.check_a.pass ? "pass" : "FAIL"}</strong>. For one point over your own dates, the Earth-contact table below.
+    </>} />
+  );
+}
+
+function WorldPicker({ lat, lon, sites, onPick, e, period, layer }: {
+  lat: number; lon: number; sites: Site[]; onPick: (lat: number, lon: number) => void;
+  e: Ephem; period: { startMs: number; days: number } | null; layer: LayerChoice;
+}) {
   const [ref, width] = useWidth<HTMLDivElement>();
+  const { fill } = useCommsFill();
+  const g: WorldGrid | null = useMemo(() => (period && layer !== "none" ? worldGrid(e, period.startMs, period.days) : null),
+    [e, period?.startMs, period?.days, layer !== "none"]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const href = useMemo(() => {
+    if (!g || layer === "none") return "";
+    const v = g[layer];
+    return cellImage(g.rows, g.cols, (r, c) => v[r * g.cols + c], fill);
+  }, [g, layer, fill]);
   const M = { top: 8, right: 8, bottom: 22, left: 30 };
   const w = Math.max(0, width - M.left - M.right), h = w / 2;
   const x = (lo: number) => ((lo + 180) / 360) * w;
@@ -325,13 +382,14 @@ function WorldPicker({ lat, lon, sites, onPick }: { lat: number; lon: number; si
             <rect width={w} height={h} fill="var(--surface)" stroke="var(--rule)" />
             <rect x={0} width={x(-90)} height={h} fill="var(--moon-fill)" />
             <rect x={x(90)} width={w - x(90)} height={h} fill="var(--moon-fill)" />
-            <rect y={y(-75)} width={w} height={h - y(-75)} fill="var(--terrain)" opacity={0.5} />
-            <rect width={w} height={y(75)} fill="var(--terrain)" opacity={0.5} />
+            {href ? <image href={href} x={0} y={0} width={w} height={h} preserveAspectRatio="none" style={{ imageRendering: "pixelated" }} /> : <>
+              <rect y={y(-75)} width={w} height={h - y(-75)} fill="var(--terrain)" opacity={0.5} />
+              <rect width={w} height={y(75)} fill="var(--terrain)" opacity={0.5} /></>}
             {[-60, -30, 0, 30, 60].map((la) => <line key={la} className="gridline" x1={0} x2={w} y1={y(la)} y2={y(la)} />)}
             {[-150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150].map((lo) => <line key={lo} className="gridline" x1={x(lo)} x2={x(lo)} y1={0} y2={h} />)}
-            <text className="map-region" x={x(0)} y={14} textAnchor="middle">Near side</text>
-            <text className="map-region" x={x(-135)} y={14} textAnchor="middle">Far side</text>
-            <text className="map-region" x={x(135)} y={14} textAnchor="middle">Far side</text>
+            <text className={href ? "map-label" : "map-region"} x={x(0)} y={14} textAnchor="middle">Near side</text>
+            <text className={href ? "map-label" : "map-region"} x={x(-135)} y={14} textAnchor="middle">Far side</text>
+            <text className={href ? "map-label" : "map-region"} x={x(135)} y={14} textAnchor="middle">Far side</text>
             {[-60, 0, 60].map((la) => <text key={la} className="map-region" x={-6} y={y(la) + 4} textAnchor="end">{la}°</text>)}
             {[-90, 0, 90].map((lo) => <text key={lo} className="map-region" x={x(lo)} y={h + 14} textAnchor="middle">{lo}°</text>)}
             {sites.map((s) => <circle key={s.id} cx={x(s.lon_deg)} cy={y(s.lat_deg)} r={3.5} fill="var(--ink-3)"><title>{s.name}</title></circle>)}
@@ -343,7 +401,13 @@ function WorldPicker({ lat, lon, sites, onPick }: { lat: number; lon: number; si
           </g>
         </svg>
       )}
-      <div className="key"><span className="k-terrain">Beyond 75°: LOLA terrain matters (see polar sites)</span><span className="k-moon">Known sites</span></div>
+      {!href && <div className="key"><span className="k-terrain">Beyond 75°: LOLA terrain matters (see polar sites)</span><span className="k-moon">Known sites</span></div>}
+      {g && layer !== "none" && period && (
+        <CommsLegend layer={layer} fill={fill} here={`At the chosen point: ${pct(worldValue(g, layer, lat, lon))}.`} note={<>
+          Share of the chosen period ({dayFmt(new Date(period.startMs))}, {period.days} days; every {worldStepH(period.days)} h) on <em>level
+          ground</em>, {g.stepDeg}° cells, computed in your browser by the same rules as the analysis below. The libration band
+          along the limbs is where the Earth rises and sets once a month. Beyond 75° the terrain decides: use the polar maps.</>} />
+      )}
     </div>
   );
 }
@@ -356,7 +420,7 @@ function ElevationChart({ r }: { r: SiteResult }) {
   let lo = 0, hi = 0;
   for (let i = 0; i < n; i++) {
     lo = Math.min(lo, s.sunEl[i], s.earthEl[i]);
-    hi = Math.max(hi, s.sunEl[i], s.earthEl[i], r.terrain ? s.sunHorizon[i] : -90);
+    hi = Math.max(hi, s.sunEl[i], s.earthEl[i], r.terrain ? Math.max(s.sunHorizon[i], s.earthHorizon[i]) : -90);
   }
   const x = scaleUtc().domain([s.t[0], s.t[n - 1]]).range([0, iw]);
   const y = scaleLinear().domain([Math.max(-90, lo - 1), Math.min(90, hi + 1)]).nice().range([ih, 0]);
@@ -389,6 +453,7 @@ function ElevationChart({ r }: { r: SiteResult }) {
               <g key={+v} className="axis"><text x={x(v)} y={ih + 30} textAnchor="middle">{tickFmt(v)}</text></g>
             ))}
             {r.terrain && <path d={`${path(s.sunHorizon)}L${x(s.t[n - 1]).toFixed(1)},${ih}L0,${ih}Z`} fill="var(--terrain)" />}
+            {r.terrain && <path d={path(s.earthHorizon)} fill="none" stroke="var(--earth)" strokeWidth={1.25} strokeDasharray="4 3" opacity={0.9} />}
             <path d={path(s.earthEl)} fill="none" stroke="var(--earth)" strokeWidth={1.5} />
             <path d={path(s.sunEl)} fill="none" stroke={SUN} strokeWidth={2} />
             {r.eclipses.filter((c) => c.sunUp).map((c, i) => (
@@ -403,6 +468,7 @@ function ElevationChart({ r }: { r: SiteResult }) {
       <div className="key">
         <span className="k-sun">Sun elevation</span><span className="k-earth">Earth elevation</span>
         {r.terrain && <span className="k-terrain">Terrain horizon towards the Sun</span>}
+        {r.terrain && <span className="k-earth-hz">Terrain horizon towards the Earth (Earth in view above this line)</span>}
         <span className="k-window">Landing window</span><span className="k-dsn">DSN station in view</span>
       </div>
     </div>
@@ -410,11 +476,11 @@ function ElevationChart({ r }: { r: SiteResult }) {
 }
 
 function Tables({ r }: { r: SiteResult }) {
-  const [tab, setTab] = useState<"windows" | "daylight" | "eclipses">("windows");
+  const [tab, setTab] = useState<"windows" | "contacts" | "daylight" | "eclipses">("windows");
   return (
     <div>
       <div className="segmented any-tabs" role="group" aria-label="Tables">
-        {([["windows", `Landing windows (${r.windows.length})`], ["daylight", `Daylight (${r.daylight.length})`],
+        {([["windows", `Landing windows (${r.windows.length})`], ["contacts", `Earth contact (${r.contacts.length})`], ["daylight", `Daylight (${r.daylight.length})`],
           ["eclipses", `Eclipses (${r.eclipses.length})`]] as const).map(([k, label]) => (
           <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>{label}</button>
         ))}
@@ -428,6 +494,18 @@ function Tables({ r }: { r: SiteResult }) {
                 <td>{dur(hours(w.end - w.start))}</td><td>{dsnNames(w.dsnAtStart).join(", ") || "none"}</td><td>{fmtNum(w.dsnPct, 0)}%</td></tr>
             ))}</tbody>
           </table>) : <p className="table-note">No landing window in this period{r.stats.earthNeverUp ? ": the Earth never comes above the horizon" : ""}.</p>)}
+        {tab === "contacts" && (r.contacts.length ? (
+          <table>
+            <thead><tr><th className="left">Earth rises (UTC)</th><th>Sets</th><th>Length</th><th>Highest above the horizon</th>
+              <th>DSN in view</th><th className="left">DSN complexes</th><th>Sun up too</th></tr></thead>
+            <tbody>{r.contacts.map((c, i) => (
+              <tr key={i} className="static">
+                <td className="left">{c.fromStart ? "before the period" : dtFmt(new Date(c.start))}</td>
+                <td>{c.toEnd ? "after the period" : dtFmt(new Date(c.end))}</td><td>{dur(hours(c.end - c.start))}</td>
+                <td>{fmtNum(c.maxAboveDeg, 1)}°</td><td>{fmtNum(c.dsnPct, 0)}%</td>
+                <td className="left">{dsnNames(c.dsnMask).join(", ") || "none"}</td><td>{fmtNum(c.sunPct, 0)}%</td></tr>
+            ))}</tbody>
+          </table>) : <p className="table-note">The Earth never comes above the horizon in its direction in this period: no direct-to-Earth contact, a relay is needed.</p>)}
         {tab === "daylight" && (
           <table>
             <thead><tr><th className="left">Sunrise (UTC)</th><th>Sunset</th><th>Daylight</th></tr></thead>

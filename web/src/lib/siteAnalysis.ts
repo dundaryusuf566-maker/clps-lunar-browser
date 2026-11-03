@@ -1,7 +1,8 @@
 /**
  * Everything the browser can say about one point of the Moon over a period, from the
  * ephemeris table alone: daylight, landing windows (the engine's light and
- * communication rules, without a transfer), Earth and DSN contact, eclipses.
+ * communication rules, without a transfer), Earth and DSN contact (as intervals: the direct-to-Earth
+ * contact windows), eclipses.
  *
  * Horizon: flat unless a horizon function (terrain, elevation by azimuth) is given;
  * the result says which. Pure functions; tested by web/tests/site.check.mjs.
@@ -25,6 +26,14 @@ export const flatHorizon: Horizon = () => 0;
 
 export interface Interval { start: number; end: number }        // UTC ms
 export interface LandingWindow extends Interval { earthPct: number; dsnAtStart: number; dsnPct: number }
+/** The Earth above the horizon in its own direction: a direct-to-Earth contact window. */
+export interface Contact extends Interval {
+  maxAboveDeg: number;        // the Earth's highest elevation above that horizon in the interval
+  dsnPct: number;             // share of the interval with a DSN complex in view
+  dsnMask: number;            // complexes seen at some time in it
+  sunPct: number;             // share of it with the Sun up too (power and link together)
+  fromStart: boolean; toEnd: boolean;   // began before / lasts beyond the period
+}
 export interface Eclipse { start: number; end: number; peak: number; maxFraction: number; sunUp: boolean }
 
 export interface SiteSeries {
@@ -37,6 +46,7 @@ export interface SiteResult {
   series: SiteSeries;
   daylight: Interval[];                 // Sun's centre above the horizon
   windows: LandingWindow[];
+  contacts: Contact[];                  // Earth's centre above the horizon in its direction
   eclipses: Eclipse[];
   stats: {
     sunUpPct: number; earthUpPct: number; dsnPct: number; dsnWhenEarthUpPct: number;
@@ -101,6 +111,18 @@ export function analyzeSite(eph: Ephem, lat: number, lon: number, startMs: numbe
     if (s.dsn[i]) dsnAny++;
   }
   const daylight = intervalsAbove(s.t, s.sunEl, s.sunHorizon);
+  const contacts: Contact[] = intervalsAbove(s.t, s.earthEl, s.earthHorizon).map((iv) => {
+    let k = 0, dsn = 0, sun = 0, mask = 0, maxAbove = -Infinity;
+    const take = (i: number) => {
+      k++; if (s.dsn[i]) dsn++; mask |= s.dsn[i];
+      if (s.sunEl[i] >= s.sunHorizon[i]) sun++;
+      maxAbove = Math.max(maxAbove, s.earthEl[i] - s.earthHorizon[i]);
+    };
+    for (let i = 0; i < n; i++) if (s.t[i] >= iv.start && s.t[i] <= iv.end) take(i);
+    if (!k) take(Math.min(n - 1, Math.max(0, Math.round((0.5 * (iv.start + iv.end) - s.t[0]) / (stepMin * 60e3)))));
+    return { ...iv, maxAboveDeg: Math.max(0, maxAbove), dsnPct: (100 * dsn) / k, dsnMask: mask, sunPct: (100 * sun) / k,
+      fromStart: iv.start <= s.t[0], toEnd: iv.end >= s.t[n - 1] };
+  });
 
   // landing windows: Sun rising through [min, max] above the horizon, Earth up (unless relay), DSN if asked
   const windows: LandingWindow[] = [];
@@ -153,7 +175,7 @@ export function analyzeSite(eph: Ephem, lat: number, lon: number, startMs: numbe
   }
   const longestDay = daylight.reduce((m, d) => Math.max(m, d.end - d.start), 0) / 3600e3;
   return {
-    lat, lon, startMs, endMs: s.t[n - 1], stepMin, terrain, rules, series: s, daylight, windows, eclipses,
+    lat, lon, startMs, endMs: s.t[n - 1], stepMin, terrain, rules, series: s, daylight, windows, contacts, eclipses,
     stats: {
       sunUpPct: (100 * sunUp) / n, earthUpPct: (100 * earthUp) / n, dsnPct: (100 * dsnAny) / n,
       dsnWhenEarthUpPct: earthUp ? (100 * dsnEarth) / earthUp : 0,

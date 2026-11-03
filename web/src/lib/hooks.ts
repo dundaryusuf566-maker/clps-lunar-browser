@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { HorizonGridMeta } from "./horizonGrid";
 import type { SlopeMapMeta } from "./slopeMap";
+import type { EarthVis, EarthVisMeta } from "./commsMap";
 import { ephemFromBuffers, type Ephem, type EphemMeta } from "./sky";
 import type { Dataset, OrientationFile, DivinerDiagnosticsFile, DivinerPolarFile, ForecastFile, LandingsFile, ThermalFile, Trajectory, TransferRow, ValidationFile } from "../types";
 import { fetchTrajectoryLive, getHealth, type Health } from "./api";
@@ -54,6 +55,23 @@ export function useEphem(): Loadable<Ephem | null> {
 export const useHorizonGridMeta = (pole: "s" | "n") => useJson<HorizonGridMeta>(`data/horizon_grid_${pole}.json`, true);
 /** Polar slope maps (scripts/build_slope_map.py), optional; tiles are fetched by the page. */
 export const useSlopeMapMeta = (pole: "s" | "n") => useJson<SlopeMapMeta>(`data/slope_map_${pole}.json`, true);
+/** Polar communication maps (scripts/build_earth_visibility.py), optional: meta and the uint8 layers. */
+export function useEarthVis(pole: "s" | "n"): Loadable<EarthVis | null> {
+  const [state, setState] = useState<Loadable<EarthVis | null>>({ status: "loading" });
+  useEffect(() => {
+    fetch(`${BASE}data/earth_vis_${pole}.json`)
+      .then(async (m) => {
+        if (!m.ok) return null;
+        const meta = (await m.json()) as EarthVisMeta;
+        const b = await fetch(`${BASE}data/${meta.bin}`);
+        if (!b.ok) return null;
+        return { meta, data: new Uint8Array(await b.arrayBuffer()) };
+      })
+      .then((data) => setState({ status: "ready", data }))
+      .catch(() => setState({ status: "ready", data: null }));
+  }, [pole]);
+  return state;
+}
 export const useOrientationFile = (pole: "south" | "north") => useJson<OrientationFile>(`data/orientation_${pole}.json`, true);
 export const useDivinerDiagnosticsFile = () => useJson<DivinerDiagnosticsFile>("data/diviner_polar_diagnostics.json", true);
 

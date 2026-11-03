@@ -26,7 +26,7 @@ npm run typecheck
 npm test                      (checks of the browser's computations, below)
 ```
 
-`npm test` runs: the power budget against hand-worked cases; the Moon's sky against the engine and NASA's eclipse catalogue; the point analysis against independent facts; the polar horizon grid and slope map against their Python twins; the regolith model against the engine and Diviner; the CSV export against the page's own numbers.
+`npm test` runs: the power budget against hand-worked cases; the Moon's sky against the engine and NASA's eclipse catalogue; the point analysis (and its direct-to-Earth contact windows) against independent facts; the polar horizon grid and slope map against their Python twins; the regolith model against the engine and Diviner; the CSV export against the page's own numbers; the communication maps against the point analysis and the engine.
 
 ## Updating the data
 
@@ -59,11 +59,12 @@ python scripts/build_ephemeris_table.py --spice
 python scripts/check_polar_orientation.py --pole south
 python scripts/build_horizon_grid.py --spice
 python scripts/build_slope_map.py
+python scripts/build_earth_visibility.py --spice
 ```
 
 ## Screens
 
-Tabs at the top: **Browse and plan** (below), **Anywhere** (`#anywhere`: daylight, landing windows, Earth and DSN, eclipses, ground temperature and power budget for any point of the Moon, with CSV export; computed in the browser), **Forecast** (`#forecast`: the registered timing and location forecast for Griffin-1, region suitability map, candidate temperatures, power budget), **3D view** (`#3d`: two scenes. Journey: IM-1, IM-2 and Griffin-1 from launch to touchdown, DSN links. Landing region: the region's LOLA terrain, shadows computed on the GPU, time slider, astronaut camera, shadow check against the engine. Needs WebGL2) and **Validation** (`#validation`).
+Tabs at the top: **Browse and plan** (below), **Anywhere** (`#anywhere`: daylight, landing windows, direct-to-Earth contact windows and DSN, eclipses, ground temperature and power budget for any point of the Moon, with CSV export; maps of where the Earth, and the Sun with it, is in view; computed in the browser), **Forecast** (`#forecast`: the registered timing and location forecast for Griffin-1, region suitability map, candidate temperatures, power budget), **3D view** (`#3d`: two scenes. Journey: IM-1, IM-2 and Griffin-1 from launch to touchdown, DSN links. Landing region: the region's LOLA terrain, shadows computed on the GPU, time slider, astronaut camera, shadow check against the engine. Needs WebGL2) and **Validation** (`#validation`).
 
 - **Where do you want to land?** A map of the Moon and a site comparison table: number of landing windows, best Δv to the surface, typical wait and daylight. Selecting a site recomputes every view for it.
 - For a polar site, a **horizon panorama**: the 360° silhouette of the LOLA terrain and the highest the Sun can climb at that latitude. The Sun chart in the landing block also shows the terrain towards the Sun; the landing window opens 0.5° above the terrain horizon.
@@ -100,6 +101,7 @@ src/
 │   ├── regolith.ts          the engine's regolith heat model, line for line (tests/regolith.check.mjs)
 │   ├── siteThermal.ts       ground temperature and sunlight at a point, spun up like the engine
 │   ├── csvExport.ts         the Anywhere page's numbers as CSV (tests/csv.check.mjs)
+│   ├── commsMap.ts          communication maps: polar (engine) and whole-Moon (browser) (tests/earthvis.check.mjs)
 │   ├── scene3d/             3D view (dependency-free WebGL2)
 │   │   ├── data.ts          scene3d file, map plane ↔ Moon-fixed ↔ scene transforms, Sun / Earth
 │   │   ├── shaders.ts       GLSL; MARCH_GLSL is the GPU twin of the engine's march_sun_clear()
@@ -124,6 +126,7 @@ src/
     ├── PowerBudget.tsx                 power budget calculator (Forecast and Anywhere)
     ├── AnywherePage.tsx                anywhere on the Moon: map, point analysis, tables
     ├── GroundSection.tsx               Anywhere: ground temperature, power budget, CSV downloads
+    ├── CommsLayer.tsx                  Anywhere: communication map layers (switch, colours, legend)
     ├── OrientationSection.tsx          polar map orientation check (Validation)
     ├── DivinerPolarSection.tsx         model and Diviner measurements at the south pole (Validation)
     └── ValidationPage.tsx              validation page

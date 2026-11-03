@@ -357,6 +357,8 @@ tbody tr[aria-selected="true"] td:first-child { font-weight: 700; }
 .key .k-window::before { background: var(--signal-soft); height: 8px; }
 .key .k-coast::before { background: var(--grid); height: 8px; }
 .key .k-terrain::before { background: var(--terrain); height: 8px; }
+.key .k-earth-hz { color: var(--ink-2); }
+.key .k-earth-hz::before { background: repeating-linear-gradient(90deg, var(--earth) 0 4px, transparent 4px 7px); }
 .terrain-fill { fill: var(--terrain); }
 .terrain-line { fill: none; stroke: var(--ink-2); stroke-width: 1.2; }
 .site-horizon { margin-top: 10px; }
@@ -602,3 +604,11 @@ td.bad-text { color: var(--bad); }
 .downloads .btn { border: 1px solid var(--rule); border-radius: var(--radius); background: var(--surface); padding: 6px 12px; font-size: var(--t-s); cursor: pointer; }
 .downloads .btn:hover:not(:disabled) { border-color: var(--ink-3); }
 .downloads .btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ---------- communication layers (Anywhere maps) ---------- */
+.comms-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 10px; }
+.comms-switch-label { font-size: var(--t-xs); color: var(--ink-3); }
+.comms-legend { margin-top: 8px; }
+.comms-scale { display: flex; align-items: center; gap: 8px; font-size: var(--t-xs); color: var(--ink-2); }
+.comms-bar { display: inline-block; width: 180px; height: 10px; border: 1px solid var(--rule); }
+.comms-legend .table-note { max-width: none; }

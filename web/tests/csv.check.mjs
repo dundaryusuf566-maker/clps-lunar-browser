@@ -49,8 +49,9 @@ for (const stepMin of [30, 60]) {
   const { cols, rows } = parse(C.eventsCsv(r, ctx));
   const kinds = (k) => rows.filter((x) => x.startsWith(k + ",")).length;
   check(cols.join(",") === "type,start_utc,end_utc,hours,peak_utc,detail", "events: header row");
-  check(kinds("daylight") === r.daylight.length && kinds("landing_window") === r.windows.length && kinds("eclipse") === r.eclipses.length,
-    `events: ${r.daylight.length} daylight, ${r.windows.length} windows, ${r.eclipses.length} eclipses, as on the page`);
+  check(kinds("daylight") === r.daylight.length && kinds("landing_window") === r.windows.length && kinds("eclipse") === r.eclipses.length
+    && kinds("earth_in_view") === r.contacts.length,
+    `events: ${r.daylight.length} daylight, ${r.windows.length} windows, ${r.contacts.length} Earth contacts, ${r.eclipses.length} eclipses, as on the page`);
   const starts = rows.map((x) => Date.parse(x.split(",")[1]));
   check(starts.every((s, i) => !i || s >= starts[i - 1]), "events in time order");
   const quoted = rows.every((x) => (x.match(/"/g) ?? []).length % 2 === 0);

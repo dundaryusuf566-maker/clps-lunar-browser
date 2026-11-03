@@ -82,5 +82,27 @@ const yr = A.analyzeSite(eph, 0, 0, Date.UTC(2025, 0, 1), 365, { stepMin: 60 }).
 check(yr.length >= 2 && yr.every((c) => c.end - c.start > 3 * 3600e3 && c.peak >= c.start && c.peak <= c.end),
   `2025 from the sub-Earth point: ${yr.length} eclipses, each followed to its end (${yr.map((c) => ((c.end - c.start) / 3600e3).toFixed(1) + " h").join(", ")})`);
 
+// 7. direct-to-Earth contact windows (criteria written before the first run, 3 November 2026):
+//    the intervals add up to the "Earth in view" share within 1 percentage point; every sample with the
+//    Earth above its horizon lies in an interval and none below it does (one step of slack at the edges);
+//    the sub-Earth point is one interval over the whole period, the far side none.
+check(sub.contacts.length === 1 && sub.contacts[0].fromStart && sub.contacts[0].toEnd, `sub-Earth point: one contact window over the whole period (${sub.contacts.length})`);
+check(far.contacts.length === 0, `far side: no contact window (${far.contacts.length})`);
+for (const [name, r] of [["east limb", limb], ["a 5 deg ridge, 30 E", ridge],
+  ["a polar point behind a 4 deg wall to the north", A.analyzeSite(eph, -88, 0, Y2025, 60, { stepMin: 30, horizon: (az) => (az < 30 || az > 330 ? 4 : 0.5) })]]) {
+  const total = r.contacts.reduce((a, c) => a + (c.end - c.start), 0);
+  const pct = (100 * total) / (r.endMs - r.startMs);
+  const step = r.stepMin * 60e3, s = r.series;
+  let bad = 0;
+  for (let i = 0; i < s.t.length; i++) {
+    const up = s.earthEl[i] >= s.earthHorizon[i];
+    const inside = r.contacts.some((c) => s.t[i] >= c.start - step && s.t[i] <= c.end + step);
+    const deep = r.contacts.some((c) => s.t[i] > c.start + step && s.t[i] < c.end - step);
+    if ((up && !inside) || (!up && deep)) bad++;
+  }
+  check(Math.abs(pct - r.stats.earthUpPct) <= 1 && bad === 0,
+    `${name}: ${r.contacts.length} contact windows, ${pct.toFixed(2)}% of the period vs Earth in view ${r.stats.earthUpPct.toFixed(2)}%, samples misplaced ${bad}`);
+}
+
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);

@@ -66,7 +66,8 @@ export function eventsCsv(r: SiteResult, c: ExportContext): string {
   const lines = header(r, c, "events");
   lines.push(
     "# daylight: Sun's centre above the horizon (start or end at the period's edge means it began before / lasted beyond);",
-    "#   landing_window: the rule above holds; eclipse: the Earth covers part of the Sun (geometric; the atmosphere widens it ~2%)",
+    "#   landing_window: the rule above holds; earth_in_view: the Earth's centre above the horizon in its own direction, a",
+    "#   direct-to-Earth contact window; eclipse: the Earth covers part of the Sun (geometric; the atmosphere widens it ~2%)",
     "type,start_utc,end_utc,hours,peak_utc,detail",
   );
   const rows: [number, string][] = [];
@@ -75,6 +76,8 @@ export function eventsCsv(r: SiteResult, c: ExportContext): string {
     field(`${d.start <= r.startMs ? "began before the period" : ""}${d.start <= r.startMs && d.end >= r.endMs ? "; " : ""}${d.end >= r.endMs ? "lasts beyond the period" : ""}`)].join(",")]);
   for (const w of r.windows) rows.push([w.start, ["landing_window", iso(w.start), iso(w.end), h(w.start, w.end), "",
     field(`DSN at opening: ${dsnNames(w.dsnAtStart).join("|") || "none"}; DSN in window ${w.dsnPct.toFixed(0)}%; Earth up ${w.earthPct.toFixed(0)}%`)].join(",")]);
+  for (const c of r.contacts) rows.push([c.start, ["earth_in_view", iso(c.start), iso(c.end), h(c.start, c.end), "",
+    field(`Earth up to ${c.maxAboveDeg.toFixed(1)} deg above the horizon; DSN in view ${c.dsnPct.toFixed(0)}% (${dsnNames(c.dsnMask).join("|") || "none"}); Sun up ${c.sunPct.toFixed(0)}%${c.fromStart ? "; began before the period" : ""}${c.toEnd ? "; lasts beyond the period" : ""}`)].join(",")]);
   for (const e of r.eclipses) rows.push([e.start, ["eclipse", iso(e.start), iso(e.end), h(e.start, e.end), iso(e.peak),
     field(`Sun hidden at most ${(100 * e.maxFraction).toFixed(0)}%; ${e.sunUp ? "in daylight here" : "at night here"}`)].join(",")]);
   rows.sort((a, b) => a[0] - b[0]);

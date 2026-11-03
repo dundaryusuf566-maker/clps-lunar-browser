@@ -206,11 +206,12 @@ function DayStrip({ days: ds, dark }: { days: ForecastDay[]; dark: boolean }) {
 }
 
 // --- where -----------------------------------------------------------------------------
-export type Layer = "daylight" | "slots" | "earth" | "energy" | "slope" | "height";
+export type Layer = "daylight" | "slots" | "earth" | "earth_lit" | "energy" | "slope" | "height";
 export const LAYERS: Record<Layer, { label: string; unit: string; get: (p: RegionPoint) => number | null; better: "high" | "low"; digits: number }> = {
   daylight: { label: "Sunlight after the best landing slot", unit: "days", get: (p) => p.best_daylight_days, better: "high", digits: 1 },
   slots: { label: "Landing-slot time in the period", unit: "days", get: (p) => (p.best_daylight_days !== null ? p.slot_days : null), better: "high", digits: 1 },
   earth: { label: "Earth in view, first days on the surface", unit: "%", get: (p) => p.earth_after_best_pct, better: "high", digits: 0 },
+  earth_lit: { label: "Earth 2° above the terrain while the Sun is up, whole period", unit: "%", get: (p) => (p.sunlit_pct > 0 ? p.earth_when_lit_pct : null), better: "high", digits: 0 },   // never sunlit: no value, not 0
   energy: { label: "Solar energy, first lunar day (14 d)", unit: "% of full Sun", get: (p) => p.energy_pct ?? null, better: "high", digits: 0 },
   slope: { label: "Slope (240 m baseline)", unit: "°", get: (p) => p.slope_deg, better: "low", digits: 1 },
   height: { label: "Height above the 1737.4 km sphere", unit: "m", get: (p) => p.height_m, better: "high", digits: 0 },

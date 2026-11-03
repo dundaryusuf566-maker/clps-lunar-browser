@@ -62,6 +62,7 @@ python scripts/build_ephemeris_table.py --spice
 python scripts/check_polar_orientation.py --pole south
 python scripts/build_horizon_grid.py --spice
 python scripts/build_slope_map.py
+python scripts/build_earth_visibility.py --spice
 ```
 
 Kuzey kutbu için (isteğe bağlı, +116 MB indirme):
@@ -71,6 +72,7 @@ python scripts/download_terrain.py --north
 python scripts/check_polar_orientation.py --pole north
 python scripts/build_horizon_grid.py --spice --pole north
 python scripts/build_slope_map.py --pole north
+python scripts/build_earth_visibility.py --spice --pole north
 ```
 
 `build_scene3d` **3D görünümün** verisini üretir (`web/public/data/scene3d.json` + `scene3d.bin`, ~2 MB, 1-2 dakika): bölgenin arazisi, saatlik Güneş ve Dünya yönleri ve gölge kontrolü için motorun referans değerleri. Tahminden sonra çalıştırılmalı, çünkü kontrol noktaları olarak tahminin ilk 10 adayını kullanır. `build_journeys` **3D yolculuğun** verisini üretir (`journeys.json` + `moon_cap.bin`, ~1 dakika); yeni transfer tasarlamaz, doğrulama ve tahmin adımlarının `data/cache` altındaki sonuçlarını kullanır. `build_thermal` adaylarda yüzey sıcaklığını ve güç hesaplayıcısının kullandığı güneş ışığını üretir (`thermal.json`). `build_ephemeris_table` **Anywhere** sayfasının tablosunu üretir (`ephem_moon.bin`, ~2 MB, 2024-2028 saatlik; tahminden bağımsız, ~1 dk). `check_polar_orientation` haritanın hangi yönde okunacağını adlı kraterlerle doğrular (aşağıda); `build_horizon_grid` bu doğrulama geçmeden çalışmaz. `build_horizon_grid` kutup başlığının LOLA ufuk ızgarasını ve gölgeli kabartma haritasını üretir (~10 dk, ~24 MB parça dosyalar).
@@ -248,6 +250,20 @@ Tarayıcıdaki sıcaklıkta olmayanlar (sayfada yazılı): noktanın kendi ufku 
 
 **CSV dışa aktarma** (`web/src/lib/csvExport.ts`, v0.18): sayfadaki sayılar iki dosya olarak indirilebilir. Saatlik seri: zaman (UTC), Güneş yükselimi / azimutu / o yöndeki ufuk, diskin ufkun üstündeki payı, Güneş'e dönük yüzeye düşen güneş ışığı (W/m²), Dünya yükselimi / azimutu / ufku, görünen DSN istasyonları, yüzey sıcaklığı. Olaylar: gündüzler, iniş pencereleri ve tutulmalar, zaman sırasıyla. Her dosyanın başındaki `#` satırları noktayı, dönemi, efemerisi, ufuk ve zemin türünü, iniş kuralını, varsayımları ve aynı görünümün linkini yazar; dosya sayfadan ayrılsa da nereden geldiği belli olur (pandas: `read_csv(..., comment="#")`). `web/tests/csv.check.mjs` dosyadaki her sayının sayfanın kendi hesabı olduğunu, saatlerin sıcaklık çalıştırmasıyla örtüştüğünü ve olay sayılarının sayfadakiyle aynı olduğunu sınar.
 
+**İletişim: Dünya'ya doğrudan temas pencereleri ve haritalar** (v0.20). Meydan okuma Dünya'ya doğrudan iletişim pencerelerini istiyor; v0.19'a kadar sayfa bunları sadece zaman yüzdesi ve yeşil bir çubuk olarak veriyordu. Şimdi:
+
+- **Temas pencereleri** (`siteAnalysis.ts`, "Earth contact" tablosu ve olaylar CSV'si): Dünya'nın merkezinin *Dünya'nın kendi yönündeki* ufkun üstünde olduğu her aralık (kutup ızgarasının kapsadığı yerde LOLA), süresi, Dünya'nın o ufkun en fazla ne kadar üstüne çıktığı, aralığın ne kadarında bir DSN kompleksinin gördüğü ve hangileri, ne kadarında Güneş'in de yukarıda olduğu (güç ve bağlantı birlikte).
+- **Yanıltabilecek bir çizim düzeltildi:** Güneş / Dünya grafiği sadece Güneş yönündeki araziyi gölgeliyordu ve Dünya çizgisi ona göre okunuyordu. Kutupta Dünya ufkun birkaç derece yakınında kaldığı için belirleyici olan kendi yönündeki arazi; artık kesikli çizgiyle çiziliyor (sayılar ve DSN çubuğu zaten doğru ufka göre hesaplanıyordu).
+- **Haritalar** (Anywhere haritalarındaki "Map shows" anahtarı): *Earth in view*, *Sun + Earth* birlikte ve *DSN contact*. Bütün Ay: seçilen dönem için tarayıcıda, düz zeminle hesaplanır (`commsMap.ts`, 2° hücreler): yakın yüz, uzak yüz ve kenarlar boyunca salınım kuşağı. Kutup başlıkları: motor, her 5 km'lik ızgara noktasının LOLA ufkuyla, 1 Kasım 2026'dan itibaren on iki ay boyunca saat saat hesaplar (`engine/surface/earth_visibility.py`, `scripts/build_earth_visibility.py`). Kutupta Dünya ufku yalayarak dolaşır; bir krater tabanı ile 5 km ötedeki bir sırt "hiç"ten "her zaman"a kadar farklı olabilir. Forecast'in bölge haritasına *Earth 2° above the terrain while the Sun is up* katmanı eklendi.
+- "Dünya görünür" demek, merkezinin arazinin üstünde olması demek; anten, güç ya da DSN zamanlaması hakkında bir şey söylemez. DSN'nin 10° eşiği bizim varsayımımız; kutup haritalarında DSN geometrisi kutup noktası için alınır (başlık boyunca 0.1°'den az değişir).
+
+**Önceden kaydedilen kontroller** (3 Kasım 2026'da, hiçbir harita hesaplanmadan önce `engine/surface/earth_visibility.py`'ye yazıldı):
+
+- **A. Düz küre:** haritanın on iki ayında Dünya 0° K 0° D'da %100, 0° K 180° D'da %0, 0° K 90° D ve 90° B'da kesinlikle arada görünür olmalı (boylamdaki salınım). **DE440 tablosuyla tarayıcıdaki sonuç:** %100, %0, %49.4 ve %48.0: **geçti**. Analitik efemerisle kenar kısmı geçemez: Ay'ı dairesel bir yörüngede dolaştığı için alt-Dünya boylamı sadece 0.14-0.61° oynar, boylamda salınım yoktur (doğu kenarı %69.6, batı %0); bu yüzden CI testi onunla sadece yakın / uzak kısmı sınar, kenarlar DE440 ile değerlendirilir.
+- **B. Izgara, her noktanın kendi ufkuna karşı:** her başlıkta 300 rastgele noktada, Dünya'nın arazinin üstünde olduğu süre için |ızgara − kendi|: medyan ≤ 5 ve %90'ı ≤ 15 yüzde puanı, ve düz ufuktan daha iyi. **Sonuç (DE440, LOLA): iki kutupta da BAŞARISIZ.** Güney: medyan 0.10, 90. yüzdelik **15.04** (sınır 15), düz ufuk medyanı 14.3. Kuzey: medyan 0.07, 90. yüzdelik **22.2**, düz ufuk medyanı 9.3. Medyan ve düz ufka karşı karşılaştırma rahatça geçiyor; kuyruk geçmiyor: on noktadan birinde ızgaranın verdiği oran noktanın kendi ufkununkinden 15 (güney) ya da 22 (kuzey) puandan fazla farklı. Güney sınırı 0.04 puanla kaçırıyor; sınır yazıldığı gibi kalıyor, kontrol başarısız sayılıyor. Sayfa bunu haritanın altında yazıyor.
+- *Sonucun yorumu (kontrolden sonra, kontrolün parçası değil):* ızgara noktalarının yaklaşık yarısı doygun: Dünya'yı hiç (güney 26.317'den 11.951, kuzey 10.819) ya da her zaman (2.188 / 3.048) görüyor; bu yüzden rastgele noktaların çoğunda hata hiç yok ve medyan bu nedenle küçük. Hata, karıştırılmış ufkun bir krater kenarıyla tabanını karıştırdığı yerlerde; Güneş saatlerinde de aynısı var (orada p90 11 / 15 puan). Yani haritalar Dünya'nın *nerede* görünüp nerede görünmediği konusunda doğru; kenara yakın tek bir nokta için güvenilecek sayı, noktanın kendi LOLA ufkuyla yapılan analiz (Forecast adayları) ya da özel bir ufuk hesabı. Daha sık ızgara açık bir çözüm ama bu sürümde denenmedi.
+- Tutarlılık (`web/tests/earthvis.check.mjs`): bütün Ay ızgarası altı hücrede nokta analiziyle aynı (Dünya ve Güneş + Dünya için en kötü 0.000, DSN için 0.07 puan); aynı efemerisle, ızgara ufkunu kullanan nokta analizi motorun kutup haritasını örnek noktalarında 1 puan içinde yeniden üretir (geliştirme derlemesinde en kötü 0.22 puan). `web/tests/site.check.mjs` 7: temas pencerelerinin toplamı "Earth in view" payıyla 1 puan içinde tutar ve her örnek doğru tarafta.
+
 Sınırlar (sayfada yazılı): 75°'den düşük enlemler için ufuk şimdilik düz, iniş penceresi transfer ve yörünge düzlemini içermez (onlar Browse and plan'da), tutulmalar geometrik (atmosfer gölgeyi ~%2 genişletir).
 
 ## 3D görünüm
@@ -385,7 +401,7 @@ Bulgular:
 
 **3. Diviner kutup karşılaştırması:** yukarıda, Regolit sıcaklıkları bölümünde. `python scripts/diviner_polar_check.py --spice` (ağ gerekir, ~5-10 dk, ~15 MB trafik). Bağlantı koparsa çökmez: okunanlar `data/cache/diviner_pcp_points.json`'a kaydedilir, aynı komut kalan dosyalardan devam eder (sorun sürerse `--workers 2`).
 
-**4. Test paketi:** `pytest` (veya `python tests/run_all.py`): 99 test, DE440 kuruluyken hepsi geçiyor (kurulu değilse 3'ü atlanır).
+**4. Test paketi:** `pytest` (veya `python tests/run_all.py`): 105 test, DE440 kuruluyken hepsi geçiyor (kurulu değilse 3'ü atlanır).
 
 | Test | Ne kanıtlıyor |
 |---|---|
