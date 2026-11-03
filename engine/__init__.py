@@ -7,4 +7,4 @@ Conventions used everywhere in the engine:
       centered on a named body.
 """
 
-__version__ = "0.20.0"
+__version__ = "0.20.1"

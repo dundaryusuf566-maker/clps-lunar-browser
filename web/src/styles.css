@@ -612,3 +612,4 @@ td.bad-text { color: var(--bad); }
 .comms-scale { display: flex; align-items: center; gap: 8px; font-size: var(--t-xs); color: var(--ink-2); }
 .comms-bar { display: inline-block; width: 180px; height: 10px; border: 1px solid var(--rule); }
 .comms-legend .table-note { max-width: none; }
+.comms-hatch { display: inline-block; width: 18px; height: 10px; margin-left: 10px; border: 1px solid var(--rule); background: repeating-linear-gradient(45deg, #14213dcc 0 1px, #ffffffdd 1px 2px, transparent 2px 6px), var(--surface); }

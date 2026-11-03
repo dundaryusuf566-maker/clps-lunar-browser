@@ -24,6 +24,15 @@ Pre-registered checks (written 3 November 2026, before any map was computed):
      90th percentile <= CHECK_B_P90_MAX_PP percentage points, and the grid must beat a flat horizon
      (median |grid - own| < median |flat - own|). The result goes onto the page whether it passes
      or not; the limits are not changed after the data is seen.
+
+Added after check B failed (3 November 2026), written before it was evaluated:
+
+  C. An uncertainty flag. A point is flagged when the Earth-in-view shares of the four grid points
+     around it (the ones its horizon is blended from) span more than UNCERTAIN_SPREAD_PP percentage
+     points: the terrain changes between them and the blend cannot be trusted. Evaluated on the same
+     random points as B. Pass: among unflagged points the 90th percentile of |grid - own| is at most
+     CHECK_C_UNFLAGGED_P90_MAX_PP, and at most CHECK_C_FLAGGED_MAX_SHARE of the points are flagged
+     (a flag that covers everything says nothing). Check B's result does not change.
 """
 
 from __future__ import annotations
@@ -41,6 +50,9 @@ CHECK_A_POINTS = {"near_centre": (0.0, 0.0), "far_centre": (0.0, 180.0), "east_l
 CHECK_B_MEDIAN_MAX_PP = 5.0
 CHECK_B_P90_MAX_PP = 15.0
 CHECK_POINTS = 300
+UNCERTAIN_SPREAD_PP = 25.0
+CHECK_C_UNFLAGGED_P90_MAX_PP = 15.0
+CHECK_C_FLAGGED_MAX_SHARE = 0.30
 CHECK_SEED = 20261103
 # the map's period: twelve months from the start of the Griffin-1 forecast window
 PERIOD_UTC = ("2026-11-01T00:00:00", "2027-11-01T00:00:00")
@@ -144,6 +156,31 @@ def judge_b(d_grid: np.ndarray, d_flat: np.ndarray) -> dict:
             "pass": bool(ok),
             "criterion": f"median <= {CHECK_B_MEDIAN_MAX_PP:g} pp, 90th percentile <= {CHECK_B_P90_MAX_PP:g} pp, "
                          "and median below a flat horizon's"}
+
+
+def neighbour_spread(E: np.ndarray, x0: float, sp: float, X: float, Y: float) -> float:
+    """Max - min of the map's values E (n, n; NaN = no grid point) at the four grid points around plane
+    point (X, Y), the ones interp_grid blends; NaN if none. As commsMap.ts spreadNear."""
+    c0, r0 = int(np.floor((X - x0) / sp)), int(np.floor((Y - x0) / sp))
+    v = [E[r, c] for r, c in ((r0, c0), (r0, c0 + 1), (r0 + 1, c0), (r0 + 1, c0 + 1))
+         if 0 <= r < E.shape[0] and 0 <= c < E.shape[1] and not np.isnan(E[r, c])]
+    return float(max(v) - min(v)) if v else float("nan")
+
+
+def judge_c(d_grid: np.ndarray, flagged: np.ndarray) -> dict:
+    """Pre-registered check C from |grid - own| (pp) and the flag at the same points."""
+    d, f = np.abs(np.asarray(d_grid, float)), np.asarray(flagged, bool)
+    un = d[~f]
+    p90_un = float(np.percentile(un, 90)) if len(un) else float("nan")
+    share = float(f.mean())
+    big = d > CHECK_B_P90_MAX_PP
+    ok = bool(len(un) > 0 and p90_un <= CHECK_C_UNFLAGGED_P90_MAX_PP and share <= CHECK_C_FLAGGED_MAX_SHARE)
+    return {"spread_pp": UNCERTAIN_SPREAD_PP, "flagged_share": round(share, 3),
+            "unflagged_p90_pp": round(p90_un, 2), "unflagged_max_pp": round(float(un.max()), 2) if len(un) else None,
+            "flagged_p90_pp": round(float(np.percentile(d[f], 90)), 2) if f.any() else None,
+            "large_errors": int(big.sum()), "large_errors_flagged": int((big & f).sum()), "pass": ok,
+            "criterion": f"flag when the four grid points span > {UNCERTAIN_SPREAD_PP:g} pp; unflagged 90th percentile "
+                         f"<= {CHECK_C_UNFLAGGED_P90_MAX_PP:g} pp and at most {100 * CHECK_C_FLAGGED_MAX_SHARE:g}% of points flagged"}
 
 
 def load_horizon_grid(meta_path: Path) -> tuple[dict, np.ndarray]:

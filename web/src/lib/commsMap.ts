@@ -29,6 +29,10 @@ export interface EarthVisMeta {
   check_b: null | { median_pp: number; p90_pp: number; max_pp: number; flat_median_pp: number; flat_p90_pp: number; pass: boolean; criterion: string; points: number };
   check_b_note: string | null;
   samples: { row: number; col: number; lat: number; lon: number; earth: number; sun_earth: number; dsn: number }[];
+  uncertain_spread_pp?: number; hatched_share?: number;
+  check_c?: null | { spread_pp: number; flagged_share: number; unflagged_p90_pp: number; flagged_p90_pp: number | null;
+    large_errors: number; large_errors_flagged: number; pass: boolean; criterion: string };
+  hatch_samples?: [number, number, boolean][];
 }
 export interface EarthVis { meta: EarthVisMeta; data: Uint8Array }
 
@@ -59,6 +63,36 @@ export function valueNear(v: EarthVis, layer: CommsLayer, lat: number, lon: numb
   const pct = nodeValue(v, layer, row, col);
   if (pct === null) return null;
   return { pct, km: Math.hypot(X - (m.x0_km + col * m.spacing_km), Y - (m.x0_km + row * m.spacing_km)) };
+}
+
+// --- the uncertainty flag (check C, engine/surface/earth_visibility.py) ---------------------------
+export const spreadLimit = (m: EarthVisMeta) => m.uncertain_spread_pp ?? 25;
+
+/** Earth-in-view range (%) of the four grid points a point's horizon is blended from (horizonGrid.ts),
+ * as the engine's neighbour_spread; null outside the grid. */
+export function spreadNear(v: EarthVis, lat: number, lon: number): { min: number; max: number; spread: number } | null {
+  const m = v.meta;
+  if (poleSign(m) * lat < m.min_abs_lat) return null;
+  const r = 2 * m.radius_km * Math.tan(Math.PI / 4 - (poleSign(m) * lat * DEG) / 2);
+  const X = m.x_sign * r * Math.sin(lon * DEG), Y = m.y_sign * r * Math.cos(lon * DEG);
+  const c0 = Math.floor((X - m.x0_km) / m.spacing_km), r0 = Math.floor((Y - m.x0_km) / m.spacing_km);
+  const vals = [[r0, c0], [r0, c0 + 1], [r0 + 1, c0], [r0 + 1, c0 + 1]]
+    .map(([rr, cc]) => nodeValue(v, "earth", rr, cc)).filter((x): x is number => x !== null);
+  if (!vals.length) return null;
+  const min = Math.min(...vals), max = Math.max(...vals);
+  return { min, max, spread: max - min };
+}
+
+/** Hatched on the map: the grid point's 3 x 3 neighbourhood spans more than the limit (any quad
+ * touching it would flag a point inside). */
+export function nodeUncertain(v: EarthVis, row: number, col: number): boolean {
+  if (nodeValue(v, "earth", row, col) === null) return false;
+  let lo = Infinity, hi = -Infinity;
+  for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+    const x = nodeValue(v, "earth", row + dr, col + dc);
+    if (x !== null) { lo = Math.min(lo, x); hi = Math.max(hi, x); }
+  }
+  return hi - lo > spreadLimit(v.meta);
 }
 
 // --- whole Moon, level ground -----------------------------------------------------------------

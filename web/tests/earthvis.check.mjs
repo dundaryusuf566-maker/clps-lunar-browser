@@ -80,6 +80,27 @@ for (const tag of ["s", "n"]) {
     for (const L of ["earth", "sun_earth", "dsn"]) if (C.nodeValue(v, L, s.row, s.col) !== s[L]) decodeOk = false;
   }
   check(decodeOk && posWorst < 1e-6, `${m.pole}: ${m.samples.length} sample grid points decoded exactly (position worst ${posWorst.toExponential(1)} deg)`);
+  // 4. (added with check C, criterion written before the first run): the browser's uncertainty flag is the
+  //    engine's: the same neighbour spread at the check points, the same hatching at the sampled grid points
+  if (m.hatch_samples) {
+    const bad = m.hatch_samples.filter(([r, c, f]) => C.nodeUncertain(v, r, c) !== f).length;
+    check(bad === 0, `${m.pole}: hatching at ${m.hatch_samples.length} grid points as the engine's (${bad} differ; ${(100 * m.hatched_share).toFixed(1)}% of the map hatched)`);
+  }
+  if (m.check_b && m.check_b.samples && m.check_b.samples[0].length >= 6) {
+    let worstS = 0;
+    for (const [la, lo, , , , sp] of m.check_b.samples) {
+      const s = C.spreadNear(v, la, lo);
+      const d = s ? Math.abs(s.spread - sp) : Infinity;
+      worstS = Math.max(worstS, d);
+      if (d >= 1e-9) {           // diagnosis: how close is the stored point to a grid-cell edge?
+        const [X, Y] = G.planeXY(m, la, lo);
+        const fx = (X - m.x0_km) / m.spacing_km, fy = (Y - m.x0_km) / m.spacing_km;
+        const edgeM = 1000 * m.spacing_km * Math.min(fx - Math.floor(fx), Math.ceil(fx) - fx, fy - Math.floor(fy), Math.ceil(fy) - fy);
+        console.log(`  differs at ${la}, ${lo}: browser ${s ? s.spread : "none"} vs engine ${sp} pp; the stored point is ${edgeM.toFixed(1)} m from a grid-cell edge`);
+      }
+    }
+    check(worstS < 1e-9, `${m.pole}: neighbour spread at ${m.check_b.samples.length} check points as the engine's (worst ${worstS})`);
+  }
   if (m.ephemeris !== meta.ephemeris) { console.log(`(${m.pole}: map from ${m.ephemeris}, table ${meta.ephemeris}: comparison with the point analysis skipped)`); continue; }
   const gm = JSON.parse(readFileSync(data(`horizon_grid_${tag}.json`), "utf8"));
   const tiles = new Map();

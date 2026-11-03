@@ -3,14 +3,14 @@ import { utcFormat } from "d3-time-format";
 import { useEffect, useMemo, useState } from "react";
 import { fmtNum } from "../lib/format";
 import { BASE, useEarthVis, useHorizonGridMeta, useSlopeMapMeta, useWidth, type Loadable } from "../lib/hooks";
-import { nodeValue, valueNear, worldGrid, worldStepH, worldValue, type EarthVis, type WorldGrid } from "../lib/commsMap";
+import { nodeUncertain, nodeValue, spreadLimit, spreadNear, valueNear, worldGrid, worldStepH, worldValue, type EarthVis, type WorldGrid } from "../lib/commsMap";
 import { covers, horizonAt, latLonOfPlane, planeXY, tilesDir, tilesFor, type GridHorizon, type HorizonGridMeta } from "../lib/horizonGrid";
 import { analyzeSite, dsnNames, type SiteResult } from "../lib/siteAnalysis";
 import { normalAt, slopeTileFor, type SlopeMapMeta } from "../lib/slopeMap";
 import type { Ephem } from "../lib/sky";
 import { numParam, readParams, writeParams } from "../lib/urlstate";
 import type { Site } from "../types";
-import { cellImage, CommsLegend, LayerSwitch, pct, useCommsFill, type LayerChoice } from "./CommsLayer";
+import { cellImage, CommsLegend, hatchImage, LayerSwitch, pct, useCommsFill, type LayerChoice } from "./CommsLayer";
 import { GroundSection } from "./GroundSection";
 import { HorizonChart } from "./HorizonChart";
 
@@ -106,7 +106,7 @@ export function AnywherePage({ ephem, sites }: { ephem: Loadable<Ephem | null>; 
                 </select>
               </label>
             </div>
-            <Analysis e={e} lat={lat} lon={lon} from={from} days={days} span={span} grid={grid} slope={slope} />
+            <Analysis e={e} lat={lat} lon={lon} from={from} days={days} span={span} grid={grid} slope={slope} vis={lat < 0 ? vis.south : vis.north} />
           </div>
         </div>
       </section>
@@ -172,8 +172,9 @@ function useSlopeNormal(m: SlopeMapMeta | null, lat: number, lon: number) {
   return useMemo(() => (m && have ? normalAt(m, tilesOf(dir), lat, lon) : null), [m, have, dir, lat, lon]);
 }
 
-function Analysis({ e, lat, lon, from, days, span, grid, slope }: {
+function Analysis({ e, lat, lon, from, days, span, grid, slope, vis }: {
   e: Ephem; lat: number; lon: number; from: string; days: number; span: number[]; grid: HorizonGridMeta | null; slope: SlopeMapMeta | null;
+  vis: EarthVis | null;
 }) {
   const gh = useGridHorizon(grid, lat, lon);
   const sn = useSlopeNormal(slope, lat, lon);
@@ -228,6 +229,14 @@ function Analysis({ e, lat, lon, from, days, span, grid, slope }: {
         </div>
       )}
       <ElevationChart r={r} />
+      {r.terrain && vis && (() => {
+        const sp = spreadNear(vis, lat, lon);
+        return sp && sp.spread > spreadLimit(vis.meta) ? (
+          <p className="slip">Uncertain terrain for the Earth here: the four 5 km grid points this point's horizon is blended from see the
+            Earth {pct(sp.min)} to {pct(sp.max)} of the year. Between a rim and a floor the blended horizon can be wrong by tens of
+            percentage points (checks B and C under the polar map), so the Earth contact windows below are uncertain at this point.</p>
+        ) : null;
+      })()}
       <Tables r={r} />
       <p className="table-note">
         Sun and Earth from the {e.meta.ephemeris} table (hourly, Moon-fixed IAU frame), interpolated; checked against the engine
@@ -281,6 +290,7 @@ function PolarPicker({ lat, lon, sites, grid, onPick, vis, layer }: {
     const L = layer;
     return cellImage(vis.meta.n, vis.meta.n, (r, c) => nodeValue(vis, L, r, c), fill);
   }, [vis, layer, fill]);
+  const hatch = useMemo(() => (vis && layer !== "none" ? hatchImage(vis.meta.n, vis.meta.n, (r, c) => nodeUncertain(vis, r, c)) : ""), [vis, layer]);
   const [x0, x1, y0, y1] = grid.relief_extent_km!;
   const PAD = 26, W = Math.max(0, Math.min(width, 640) - 2 * PAD);
   const px = (X: number) => ((X - x0) / (x1 - x0)) * W;
@@ -307,6 +317,11 @@ function PolarPicker({ lat, lon, sites, grid, onPick, vis, layer }: {
             const m = vis.meta, lo = m.x0_km - m.spacing_km / 2, hi = m.x0_km + (m.n - 0.5) * m.spacing_km;
             return <image href={href} x={px(lo)} y={py(lo)} width={px(hi) - px(lo)} height={py(hi) - py(lo)} preserveAspectRatio="none"
               style={{ imageRendering: "pixelated" }} opacity={0.85} clipPath={`url(#cap-${grid.pole})`} />;
+          })()}
+          {hatch && vis && (() => {
+            const m = vis.meta, lo = m.x0_km - m.spacing_km / 2, hi = m.x0_km + (m.n - 0.5) * m.spacing_km;
+            return <image href={hatch} x={px(lo)} y={py(lo)} width={px(hi) - px(lo)} height={py(hi) - py(lo)} preserveAspectRatio="none"
+              style={{ imageRendering: "pixelated" }} clipPath={`url(#cap-${grid.pole})`} />;
           })()}
           {[85, 80].filter((a) => a > grid.min_abs_lat).map((a) => (
             <g key={a}><circle cx={cx} cy={cy} r={px(ring(a)) - cx} fill="none" stroke="#ffffff88" strokeDasharray="3 4" />
@@ -336,18 +351,25 @@ function PolarPicker({ lat, lon, sites, grid, onPick, vis, layer }: {
 }
 
 function PolarLegend({ vis, layer, fill, lat, lon }: { vis: EarthVis; layer: Exclude<LayerChoice, "none">; fill: (v: number) => string; lat: number; lon: number }) {
-  const m = vis.meta, near = valueNear(vis, layer, lat, lon), b = m.check_b;
-  const here = near ? `At the chosen point (grid point ${fmtNum(near.km, 1)} km away): ${pct(near.pct)}.` : null;
+  const m = vis.meta, near = valueNear(vis, layer, lat, lon), b = m.check_b, c = m.check_c, sp = spreadNear(vis, lat, lon);
+  const unsure = !!sp && sp.spread > spreadLimit(m);
+  const here = near ? <>At the chosen point (grid point {fmtNum(near.km, 1)} km away): {pct(near.pct)}{unsure
+    ? <>; <strong>uncertain here</strong>: the grid points around it see the Earth {pct(sp!.min)} to {pct(sp!.max)} of the year</> : null}.</> : null;
   const period = `${dayFmt(new Date(`${m.period_utc[0]}Z`))} to ${dayFmt(new Date(`${m.period_utc[1]}Z`))}`;
   return (
-    <CommsLegend layer={layer} fill={fill} here={here} note={<>
+    <CommsLegend layer={layer} fill={fill} here={here} hatch note={<>
       Share of the twelve months {period} ({m.ephemeris}), hour by hour, at each {fmtNum(m.spacing_km, 0)} km grid point with its own LOLA
       horizon ({m.dem}); computed by the engine (scripts/build_earth_visibility.py). Earth in view means its centre is above the
       terrain in its direction; it does not mean an antenna, power or a DSN booking. DSN: a complex sees the Moon above 10° (our assumption).{" "}
       {b ? <>Checked before use (pre-registered): at {b.points} random points the grid's Earth-in-view share is {fmtNum(b.median_pp, 1)} points
         from each point's own horizon (median; 90% within {fmtNum(b.p90_pp, 1)}; limits 5 and 15), a flat horizon {fmtNum(b.flat_median_pp, 1)}:{" "}
         <strong>{b.pass ? "pass" : "FAIL"}</strong>.</> : <>The grid has not been checked against each point's own horizon ({m.check_b_note}).</>}{" "}
-      Level-sphere check: <strong>{m.check_a.pass ? "pass" : "FAIL"}</strong>. For one point over your own dates, the Earth-contact table below.
+      Level-sphere check: <strong>{m.check_a.pass ? "pass" : "FAIL"}</strong>.{" "}
+      Hatched: the grid points around disagree by more than {fmtNum(spreadLimit(m), 0)} points ({fmtNum(100 * (m.hatched_share ?? 0), 0)}% of the map).{" "}
+      {c ? <>Added after check B failed, criterion written before it was evaluated: away from the hatching the grid is {fmtNum(c.unflagged_p90_pp, 1)} points
+        from each point's own horizon (90th percentile; limit 15) with {fmtNum(100 * c.flagged_share, 0)}% of the points flagged (limit 30%);{" "}
+        {c.large_errors_flagged} of the {c.large_errors} errors over 15 points are flagged: <strong>{c.pass ? "pass" : "FAIL"}</strong>.</> : null}{" "}
+      For one point over your own dates, the Earth-contact table below.
     </>} />
   );
 }

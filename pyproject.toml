@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "clps-lunar-browser"
-version = "0.20.0"
+version = "0.20.1"
 description = "Modular Earth-Moon flight dynamics engine for the NASA Space Apps CLPS Lunar Mission Browser challenge"
 requires-python = ">=3.10"
 dependencies = [

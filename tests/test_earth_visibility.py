@@ -70,3 +70,14 @@ def test_check_b_judgement():
     assert not ev.judge_b(np.full(100, 6.0), np.full(100, 20.0))["pass"]          # median over 5
     assert not ev.judge_b(np.r_[np.full(85, 1.0), np.full(15, 20.0)], np.full(100, 10.0))["pass"]   # p90 over 15
     assert not ev.judge_b(np.full(100, 2.0), np.full(100, 1.0))["pass"]           # no better than flat
+
+
+def test_neighbour_spread_and_check_c_judgement():
+    E = np.array([[0.0, 10.0], [np.nan, 40.0]])
+    assert ev.neighbour_spread(E, 0.0, 5.0, 2.5, 2.5) == 40.0          # three grid points: 0, 10, 40
+    assert np.isnan(ev.neighbour_spread(np.full((2, 2), np.nan), 0.0, 5.0, 2.5, 2.5))
+    d = np.r_[np.full(80, 1.0), np.full(20, 40.0)]
+    c = ev.judge_c(d, np.r_[np.zeros(80, bool), np.ones(20, bool)])          # flags catch every large error
+    assert c["pass"] and c["unflagged_p90_pp"] == 1.0 and c["large_errors_flagged"] == 20
+    assert not ev.judge_c(d, np.zeros(100, bool))["pass"]                    # nothing flagged: tail remains
+    assert not ev.judge_c(d, np.r_[np.zeros(60, bool), np.ones(40, bool)])["pass"]   # 40% flagged: too many

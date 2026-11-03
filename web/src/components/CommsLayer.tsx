@@ -61,13 +61,33 @@ export function cellImage(rows: number, cols: number, value: (r: number, c: numb
   return cv.toDataURL("image/png");
 }
 
-export function CommsLegend({ layer, fill, here, note }: { layer: CommsLayer; fill: (v: number) => string; here: string | null; note: React.ReactNode }) {
+/** Diagonal two-tone stripes over flagged cells, `scale` pixels per cell; transparent elsewhere. */
+export function hatchImage(rows: number, cols: number, flagged: (r: number, c: number) => boolean, scale = 6): string {
+  const cv = document.createElement("canvas");
+  cv.width = cols * scale; cv.height = rows * scale;
+  const ctx = cv.getContext("2d");
+  if (!ctx) return "";
+  const img = ctx.createImageData(cv.width, cv.height);
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    if (!flagged(r, c)) continue;
+    for (let y = r * scale; y < (r + 1) * scale; y++) for (let x = c * scale; x < (c + 1) * scale; x++) {
+      const k = (x + y) % scale, o = (y * cv.width + x) * 4;
+      if (k === 0) { img.data[o] = 20; img.data[o + 1] = 33; img.data[o + 2] = 61; img.data[o + 3] = 200; }
+      else if (k === 1) { img.data[o] = 255; img.data[o + 1] = 255; img.data[o + 2] = 255; img.data[o + 3] = 220; }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return cv.toDataURL("image/png");
+}
+
+export function CommsLegend({ layer, fill, here, note, hatch }: { layer: CommsLayer; fill: (v: number) => string; here: React.ReactNode; note: React.ReactNode; hatch?: boolean }) {
   const stops = Array.from({ length: 11 }, (_, i) => `${fill(i * 10)} ${i * 10}%`).join(", ");
   const label = COMMS_LAYERS.find((l) => l.id === layer)!.label;
   return (
     <div className="comms-legend">
       <div className="comms-scale">
         <span>0%</span><span className="comms-bar" style={{ background: `linear-gradient(90deg, ${stops})` }} /><span>100% of the time</span>
+        {hatch && <><span className="comms-hatch" aria-hidden="true" /><span>uncertain: the grid points around disagree</span></>}
       </div>
       <p className="table-note"><strong>{label}.</strong> {here ? <>{here} </> : null}{note}</p>
     </div>
