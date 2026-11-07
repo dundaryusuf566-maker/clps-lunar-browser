@@ -448,6 +448,10 @@ Bulgular:
 7. Eliptik / donmuş yakalama yörüngeleri, GRAIL tam gravite alanı
 8. Yakalama yörüngesini 30 gün boyunca tam modelle propagate etmek (düzlem kayması)
 
+## Yapay zekâ kullanımı
+
+Bu proje Anthropic'in Claude modelinin önemli yardımıyla yapıldı; kullanılan tek yapay zekâ aracı o: kodun büyük kısmını (motor, betikler, web arayüzü, testler) yazdı, belgelerin taslağını hazırladı ve sunumu oluşturdu. Takım problemi seçti, gereksinimleri belirledi, her geçme ölçütünü veri görülmeden önce onayladı, bütün hesapları gerçek JPL ve NASA verisiyle çalıştırdı, matematiği ve kodu kontrol etti ve tahmini kayda geçirdi. Hiçbir sayı yapay zekâ modelinin kendisinden gelmiyor; her sonuç motor tarafından hesaplanıyor ve yukarıdaki testlerle kontrol ediliyor, başarısız kontroller başarısız olarak raporlanıyor. Yapay zekâyla üretilmiş görsel yok. Tam beyan: [AI_USE.md](AI_USE.md).
+
 ## Lisans
 
 Kod: MIT ([LICENSE](LICENSE)). `web/public/fonts` içindeki yazı tipleri GUST Font License'a tabidir. Motorun okuduğu ya da türettiği veri ürünleri (JPL DE440, LRO LOLA ve Diviner) NASA ve JPL'in açık arşivlerinden gelir; kaynaklar yukarıdaki bölümlerde.

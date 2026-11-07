@@ -1,6 +1,7 @@
 {
   "name": "clps-lunar-browser-web",
   "private": true,
+  "description": "Web interface of the CLPS Lunar Mission Browser (AI-assisted code: see ../AI_USE.md)",
   "version": "0.1.0",
   "type": "module",
   "scripts": {

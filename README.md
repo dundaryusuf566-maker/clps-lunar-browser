@@ -484,6 +484,10 @@ Findings:
 7. Elliptical / frozen capture orbits, GRAIL full gravity field
 8. Propagating the capture orbit for 30 days with the full model (plane drift)
 
+## AI use
+
+This project was built with substantial help from Anthropic's Claude, the only AI tool used: it wrote most of the code (engine, scripts, web interface, tests), drafted the documentation and built the slide deck. The team chose the problem, set the requirements, agreed every pass criterion before the data was seen, ran all computations with the real JPL and NASA data, checked the mathematics and the code, and registered the forecast. No number comes from the AI model itself; every result is computed by the engine and checked by the tests above, and failed checks are reported as failed. No image is AI-generated. Full statement: [AI_USE.md](AI_USE.md).
+
 ## License
 
 Code: MIT ([LICENSE](LICENSE)). The fonts in `web/public/fonts` keep the GUST Font License. The data products the engine reads or derives from (JPL DE440, LRO LOLA and Diviner) come from NASA and JPL public archives; sources are named in the sections above.

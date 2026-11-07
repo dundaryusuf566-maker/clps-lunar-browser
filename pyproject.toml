@@ -5,12 +5,17 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "clps-lunar-browser"
 version = "0.20.1"
-description = "Modular Earth-Moon flight dynamics engine for the NASA Space Apps CLPS Lunar Mission Browser challenge"
+description = "Modular Earth-Moon flight dynamics engine for the NASA Space Apps CLPS Lunar Mission Browser challenge (AI-assisted code: see AI_USE.md)"
+keywords = ["nasa-space-apps", "moon", "clps", "lunar-landing", "ai-assisted"]
 requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
 ]
+
+[project.urls]
+Repository = "https://github.com/dundaryusuf566-maker/clps-lunar-browser"
+"AI use" = "https://github.com/dundaryusuf566-maker/clps-lunar-browser/blob/main/AI_USE.md"
 
 [project.optional-dependencies]
 spice = ["spiceypy>=6.0"]
