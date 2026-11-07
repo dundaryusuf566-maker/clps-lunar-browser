@@ -81,3 +81,11 @@ def test_neighbour_spread_and_check_c_judgement():
     assert c["pass"] and c["unflagged_p90_pp"] == 1.0 and c["large_errors_flagged"] == 20
     assert not ev.judge_c(d, np.zeros(100, bool))["pass"]                    # nothing flagged: tail remains
     assert not ev.judge_c(d, np.r_[np.zeros(60, bool), np.ones(40, bool)])["pass"]   # 40% flagged: too many
+
+
+def test_check_d_is_stricter_than_b():
+    d, flat = np.r_[np.full(85, 1.0), np.full(15, 12.0)], np.full(100, 20.0)     # median 1, p90 12
+    assert ev.judge_b(d, flat)["pass"] and not ev.judge_d(d, flat)["pass"]          # B passes, D does not
+    assert ev.judge_d(np.r_[np.full(90, 1.5), np.full(10, 30.0)], flat)["pass"]    # p90 1.5, median 1.5
+    assert not ev.judge_d(np.full(100, 2.5), flat)["pass"]                          # median over 2
+    assert ev.judge_d(np.zeros(10), np.full(10, 1.0))["criterion"].startswith("median <= 2 pp, 90th percentile <= 10 pp")

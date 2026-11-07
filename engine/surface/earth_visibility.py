@@ -33,6 +33,16 @@ Added after check B failed (3 November 2026), written before it was evaluated:
      random points as B. Pass: among unflagged points the 90th percentile of |grid - own| is at most
      CHECK_C_UNFLAGGED_P90_MAX_PP, and at most CHECK_C_FLAGGED_MAX_SHARE of the points are flagged
      (a flag that covers everything says nothing). Check B's result does not change.
+
+Added after B and C (7 November 2026), written before any dense map was computed:
+
+  D. A dense map with no blending: every point of a DENSE_SPACING_KM grid gets its own LOLA horizon
+     (scripts/build_comms_dense.py), so the map's value at a place is that of the nearest such
+     point. At CHECK_D_POINTS new random points of the cap (seed CHECK_D_SEED), the share of the
+     period with the Earth above the terrain from the nearest dense point minus the share from the
+     random point's own horizon. Pass: median |difference| <= CHECK_D_MEDIAN_MAX_PP and 90th
+     percentile <= CHECK_D_P90_MAX_PP percentage points, and better than a flat horizon. Stricter
+     than B on purpose. B and C keep their results.
 """
 
 from __future__ import annotations
@@ -53,6 +63,11 @@ CHECK_POINTS = 300
 UNCERTAIN_SPREAD_PP = 25.0
 CHECK_C_UNFLAGGED_P90_MAX_PP = 15.0
 CHECK_C_FLAGGED_MAX_SHARE = 0.30
+DENSE_SPACING_KM = 1.0
+CHECK_D_MEDIAN_MAX_PP = 2.0
+CHECK_D_P90_MAX_PP = 10.0
+CHECK_D_POINTS = 300
+CHECK_D_SEED = 20261107
 CHECK_SEED = 20261103
 # the map's period: twelve months from the start of the Griffin-1 forecast window
 PERIOD_UTC = ("2026-11-01T00:00:00", "2027-11-01T00:00:00")
@@ -146,16 +161,22 @@ def check_a(sky: Sky) -> dict:
             "criterion": "level sphere: 100% at 0N 0E, 0% at 0N 180E, strictly between at 0N 90E and 0N 90W"}
 
 
-def judge_b(d_grid: np.ndarray, d_flat: np.ndarray) -> dict:
-    """Pre-registered check B from |grid - own| and |flat - own| (percentage points)."""
+def judge_b(d_grid: np.ndarray, d_flat: np.ndarray, median_max: float = CHECK_B_MEDIAN_MAX_PP,
+            p90_max: float = CHECK_B_P90_MAX_PP) -> dict:
+    """Pre-registered check B (or D, with its limits) from |map - own| and |flat - own| (pp)."""
     d_grid, d_flat = np.abs(np.asarray(d_grid, float)), np.abs(np.asarray(d_flat, float))
     med, p90, med_flat = float(np.median(d_grid)), float(np.percentile(d_grid, 90)), float(np.median(d_flat))
-    ok = med <= CHECK_B_MEDIAN_MAX_PP and p90 <= CHECK_B_P90_MAX_PP and med < med_flat
+    ok = med <= median_max and p90 <= p90_max and med < med_flat
     return {"median_pp": round(med, 2), "p90_pp": round(p90, 2), "max_pp": round(float(np.max(d_grid)), 2),
             "flat_median_pp": round(med_flat, 2), "flat_p90_pp": round(float(np.percentile(d_flat, 90)), 2),
             "pass": bool(ok),
-            "criterion": f"median <= {CHECK_B_MEDIAN_MAX_PP:g} pp, 90th percentile <= {CHECK_B_P90_MAX_PP:g} pp, "
+            "criterion": f"median <= {median_max:g} pp, 90th percentile <= {p90_max:g} pp, "
                          "and median below a flat horizon's"}
+
+
+def judge_d(d_dense: np.ndarray, d_flat: np.ndarray) -> dict:
+    """Pre-registered check D: as B, with D's stricter limits."""
+    return judge_b(d_dense, d_flat, CHECK_D_MEDIAN_MAX_PP, CHECK_D_P90_MAX_PP)
 
 
 def neighbour_spread(E: np.ndarray, x0: float, sp: float, X: float, Y: float) -> float:

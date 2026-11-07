@@ -3,7 +3,7 @@ import { utcFormat } from "d3-time-format";
 import { useEffect, useMemo, useState } from "react";
 import { fmtNum } from "../lib/format";
 import { BASE, useEarthVis, useHorizonGridMeta, useSlopeMapMeta, useWidth, type Loadable } from "../lib/hooks";
-import { nodeUncertain, nodeValue, spreadLimit, spreadNear, valueNear, worldGrid, worldStepH, worldValue, type EarthVis, type WorldGrid } from "../lib/commsMap";
+import { earthUpShare, nodeUncertain, nodeValue, spreadLimit, spreadNear, valueNear, worldGrid, worldStepH, worldValue, type EarthVis, type WorldGrid } from "../lib/commsMap";
 import { covers, horizonAt, latLonOfPlane, planeXY, tilesDir, tilesFor, type GridHorizon, type HorizonGridMeta } from "../lib/horizonGrid";
 import { analyzeSite, dsnNames, type SiteResult } from "../lib/siteAnalysis";
 import { normalAt, slopeTileFor, type SlopeMapMeta } from "../lib/slopeMap";
@@ -38,8 +38,9 @@ export function AnywherePage({ ephem, sites }: { ephem: Loadable<Ephem | null>; 
   const grids = { south: gs.status === "ready" ? gs.data : null, north: gn.status === "ready" ? gn.data : null };
   const grid = lat < 0 ? grids.south : grids.north;
   const ss = useSlopeMapMeta("s"), sn = useSlopeMapMeta("n");
-  const vs = useEarthVis("s"), vn = useEarthVis("n");
-  const vis = { south: vs.status === "ready" ? vs.data : null, north: vn.status === "ready" ? vn.data : null };
+  const vs = useEarthVis("s"), vn = useEarthVis("n"), ds = useEarthVis("s", true), dn = useEarthVis("n", true);
+  const ready = (x: Loadable<EarthVis | null>) => (x.status === "ready" ? x.data : null);
+  const vis = { south: ready(vs), north: ready(vn) }, dense = { south: ready(ds), north: ready(dn) };
   const slope = lat < 0 ? (ss.status === "ready" ? ss.data : null) : (sn.status === "ready" ? sn.data : null);
   useEffect(() => writeParams({ lat: lat.toFixed(4), lon: lon.toFixed(4), from, days }), [lat, lon, from, days]);
 
@@ -74,7 +75,7 @@ export function AnywherePage({ ephem, sites }: { ephem: Loadable<Ephem | null>; 
               which of NASA's Deep Space Network stations can hear it, and when the Earth eclipses the Sun. Everything
               runs here from a table of JPL's ephemeris; nothing is sent anywhere.
             </p>
-            <MoonPicker lat={lat} lon={lon} sites={sites} grids={grids} vis={vis} e={e} period={period}
+            <MoonPicker lat={lat} lon={lon} sites={sites} grids={grids} vis={vis} dense={dense} e={e} period={period}
               onPick={(la, lo) => { setLat(la); setLon(lo); }} />
           </div>
           <div>
@@ -106,7 +107,8 @@ export function AnywherePage({ ephem, sites }: { ephem: Loadable<Ephem | null>; 
                 </select>
               </label>
             </div>
-            <Analysis e={e} lat={lat} lon={lon} from={from} days={days} span={span} grid={grid} slope={slope} vis={lat < 0 ? vis.south : vis.north} />
+            <Analysis e={e} lat={lat} lon={lon} from={from} days={days} span={span} grid={grid} slope={slope} vis={lat < 0 ? vis.south : vis.north}
+              dense={lat < 0 ? dense.south : dense.north} />
           </div>
         </div>
       </section>
@@ -172,9 +174,28 @@ function useSlopeNormal(m: SlopeMapMeta | null, lat: number, lon: number) {
   return useMemo(() => (m && have ? normalAt(m, tilesOf(dir), lat, lon) : null), [m, have, dir, lat, lon]);
 }
 
-function Analysis({ e, lat, lon, from, days, span, grid, slope, vis }: {
+function DenseLegend({ vis, layer, fill, lat, lon }: { vis: EarthVis; layer: Exclude<LayerChoice, "none">; fill: (v: number) => string; lat: number; lon: number }) {
+  const m = vis.meta, near = valueNear(vis, layer, lat, lon), d = m.check_d, g5 = d?.grid5_same_points_reported_not_judged;
+  const period = `${dayFmt(new Date(`${m.period_utc[0]}Z`))} to ${dayFmt(new Date(`${m.period_utc[1]}Z`))}`;
+  const here = near ? `At the chosen point (map point ${fmtNum(near.km * 1000, 0)} m away): ${pct(near.pct)}.` : null;
+  return (
+    <CommsLegend layer={layer} fill={fill} here={here} note={<>
+      Share of the twelve months {period} ({m.ephemeris}), hour by hour, at every point of a {fmtNum(m.spacing_km, 0)} km grid, each with
+      its <em>own</em> LOLA horizon ({m.dem}), nothing blended; computed by the engine (scripts/build_comms_dense.py). Earth in view means
+      its centre is above the terrain in its direction; it does not mean an antenna, power or a DSN booking. DSN: a complex sees the Moon
+      above 10° (our assumption).{" "}
+      {d ? <>Checked (pre-registered, stricter than the 5 km map's): at {d.points} new random points the map is {fmtNum(d.median_pp, 1)} points
+        from each point's own horizon (median; 90% within {fmtNum(d.p90_pp, 1)}; limits 2 and 10), a flat horizon {fmtNum(d.flat_median_pp, 1)}:{" "}
+        <strong>{d.pass ? "pass" : "FAIL"}</strong>.{g5 ? <> The 5 km map at the same points: median {fmtNum(g5.median_pp, 1)}, 90% within {fmtNum(g5.p90_pp, 1)}.</> : null}</>
+        : null}{" "}
+      Level-sphere check: <strong>{m.check_a.pass ? "pass" : "FAIL"}</strong>. For one point over your own dates, the Earth-contact table below.
+    </>} />
+  );
+}
+
+function Analysis({ e, lat, lon, from, days, span, grid, slope, vis, dense }: {
   e: Ephem; lat: number; lon: number; from: string; days: number; span: number[]; grid: HorizonGridMeta | null; slope: SlopeMapMeta | null;
-  vis: EarthVis | null;
+  vis: EarthVis | null; dense: EarthVis | null;
 }) {
   const gh = useGridHorizon(grid, lat, lon);
   const sn = useSlopeNormal(slope, lat, lon);
@@ -184,6 +205,14 @@ function Analysis({ e, lat, lon, from, days, span, grid, slope, vis }: {
   const horizon = useTerrain && gh.h ? gh.h.fn : undefined;
   const r = useMemo(() => (ok ? analyzeSite(e, lat, lon, start, days, { stepMin: days > 120 ? 60 : 30, horizon }) : null),
     [e, lat, lon, start, days, ok, horizon]);
+  // the dense map's own-horizon value against the 5 km grid horizon over the same twelve months, at this point
+  const denseCmp = useMemo(() => {
+    const own = dense && horizon ? valueNear(dense, "earth", lat, lon) : null;
+    if (!dense || !own || !horizon) return null;
+    const p0 = Date.parse(`${dense.meta.period_utc[0]}Z`), p1 = Date.parse(`${dense.meta.period_utc[1]}Z`);
+    if (!(p0 >= span[0] && p1 <= span[1])) return null;
+    return { own: own.pct, grid: earthUpShare(e, lat, lon, p0, (p1 - p0) / 86400e3, horizon, dense.meta.step_h) };
+  }, [dense, horizon, e, lat, lon, span]);
   if (!r) return <p className="slip">The table covers {dayFmt(new Date(span[0]))} to {dayFmt(new Date(span[1]))}; choose a period inside it.</p>;
   const polar = Math.abs(lat) >= 75;
   const inGrid = !!grid && covers(grid, lat);
@@ -229,7 +258,12 @@ function Analysis({ e, lat, lon, from, days, span, grid, slope, vis }: {
         </div>
       )}
       <ElevationChart r={r} />
-      {r.terrain && vis && (() => {
+      {r.terrain && denseCmp && Math.abs(denseCmp.own - denseCmp.grid) > 15 && (
+        <p className="slip">At this spot the Earth is above its own LOLA horizon {pct(denseCmp.own)} of the year (1 km map), but above the
+          5 km grid's blended horizon, which this analysis uses, {pct(denseCmp.grid)}. Near a rim the blend can be wrong: trust the 1 km map's
+          share, and treat the Earth contact windows below as uncertain at this point.</p>
+      )}
+      {r.terrain && vis && !denseCmp && (() => {
         const sp = spreadNear(vis, lat, lon);
         return sp && sp.spread > spreadLimit(vis.meta) ? (
           <p className="slip">Uncertain terrain for the Earth here: the four 5 km grid points this point's horizon is blended from see the
@@ -254,8 +288,9 @@ function Analysis({ e, lat, lon, from, days, span, grid, slope, vis }: {
 }
 
 type Pole = "south" | "north";
-function MoonPicker({ lat, lon, sites, grids, vis, e, period, onPick }: {
+function MoonPicker({ lat, lon, sites, grids, vis, dense, e, period, onPick }: {
   lat: number; lon: number; sites: Site[]; grids: Record<Pole, HorizonGridMeta | null>; vis: Record<Pole, EarthVis | null>;
+  dense: Record<Pole, EarthVis | null>;
   e: Ephem; period: { startMs: number; days: number } | null; onPick: (lat: number, lon: number) => void;
 }) {
   const [layer, setLayer] = useState<LayerChoice>("none");
@@ -269,7 +304,8 @@ function MoonPicker({ lat, lon, sites, grids, vis, e, period, onPick }: {
     </div>
   );
   const polarView = view !== "moon" && ok(view);
-  const visHere = polarView ? vis[view as Pole] : null;
+  // the dense map (each point's own horizon, check D) when it has been built, else the 5 km map (checks B, C)
+  const visHere = polarView ? dense[view as Pole] ?? vis[view as Pole] : null;
   const canLayer = polarView ? !!visHere : !!period;
   const sw = canLayer && <LayerSwitch value={layer} onChange={setLayer} noneLabel={polarView ? "Relief" : "Plain"} />;
   if (polarView) {
@@ -290,7 +326,7 @@ function PolarPicker({ lat, lon, sites, grid, onPick, vis, layer }: {
     const L = layer;
     return cellImage(vis.meta.n, vis.meta.n, (r, c) => nodeValue(vis, L, r, c), fill);
   }, [vis, layer, fill]);
-  const hatch = useMemo(() => (vis && layer !== "none" ? hatchImage(vis.meta.n, vis.meta.n, (r, c) => nodeUncertain(vis, r, c)) : ""), [vis, layer]);
+  const hatch = useMemo(() => (vis && !vis.meta.dense && layer !== "none" ? hatchImage(vis.meta.n, vis.meta.n, (r, c) => nodeUncertain(vis, r, c)) : ""), [vis, layer]);
   const [x0, x1, y0, y1] = grid.relief_extent_km!;
   const PAD = 26, W = Math.max(0, Math.min(width, 640) - 2 * PAD);
   const px = (X: number) => ((X - x0) / (x1 - x0)) * W;
@@ -351,6 +387,7 @@ function PolarPicker({ lat, lon, sites, grid, onPick, vis, layer }: {
 }
 
 function PolarLegend({ vis, layer, fill, lat, lon }: { vis: EarthVis; layer: Exclude<LayerChoice, "none">; fill: (v: number) => string; lat: number; lon: number }) {
+  if (vis.meta.dense) return <DenseLegend vis={vis} layer={layer} fill={fill} lat={lat} lon={lon} />;
   const m = vis.meta, near = valueNear(vis, layer, lat, lon), b = m.check_b, c = m.check_c, sp = spreadNear(vis, lat, lon);
   const unsure = !!sp && sp.spread > spreadLimit(m);
   const here = near ? <>At the chosen point (grid point {fmtNum(near.km, 1)} km away): {pct(near.pct)}{unsure

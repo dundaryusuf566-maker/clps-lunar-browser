@@ -63,6 +63,7 @@ python scripts/check_polar_orientation.py --pole south
 python scripts/build_horizon_grid.py --spice
 python scripts/build_slope_map.py
 python scripts/build_earth_visibility.py --spice
+python scripts/build_comms_dense.py --spice
 ```
 
 Kuzey kutbu için (isteğe bağlı, +116 MB indirme):
@@ -73,6 +74,7 @@ python scripts/check_polar_orientation.py --pole north
 python scripts/build_horizon_grid.py --spice --pole north
 python scripts/build_slope_map.py --pole north
 python scripts/build_earth_visibility.py --spice --pole north
+python scripts/build_comms_dense.py --spice --pole north
 ```
 
 `build_scene3d` **3D görünümün** verisini üretir (`web/public/data/scene3d.json` + `scene3d.bin`, ~2 MB, 1-2 dakika): bölgenin arazisi, saatlik Güneş ve Dünya yönleri ve gölge kontrolü için motorun referans değerleri. Tahminden sonra çalıştırılmalı, çünkü kontrol noktaları olarak tahminin ilk 10 adayını kullanır. `build_journeys` **3D yolculuğun** verisini üretir (`journeys.json` + `moon_cap.bin`, ~1 dakika); yeni transfer tasarlamaz, doğrulama ve tahmin adımlarının `data/cache` altındaki sonuçlarını kullanır. `build_thermal` adaylarda yüzey sıcaklığını ve güç hesaplayıcısının kullandığı güneş ışığını üretir (`thermal.json`). `build_ephemeris_table` **Anywhere** sayfasının tablosunu üretir (`ephem_moon.bin`, ~2 MB, 2024-2028 saatlik; tahminden bağımsız, ~1 dk). `check_polar_orientation` haritanın hangi yönde okunacağını adlı kraterlerle doğrular (aşağıda); `build_horizon_grid` bu doğrulama geçmeden çalışmaz. `build_horizon_grid` kutup başlığının LOLA ufuk ızgarasını ve gölgeli kabartma haritasını üretir (~10 dk, ~24 MB parça dosyalar).
@@ -263,6 +265,7 @@ Tarayıcıdaki sıcaklıkta olmayanlar (sayfada yazılı): noktanın kendi ufku 
 - **B. Izgara, her noktanın kendi ufkuna karşı:** her başlıkta 300 rastgele noktada, Dünya'nın arazinin üstünde olduğu süre için |ızgara − kendi|: medyan ≤ 5 ve %90'ı ≤ 15 yüzde puanı, ve düz ufuktan daha iyi. **Sonuç (DE440, LOLA): iki kutupta da BAŞARISIZ.** Güney: medyan 0.10, 90. yüzdelik **15.04** (sınır 15), düz ufuk medyanı 14.3. Kuzey: medyan 0.07, 90. yüzdelik **22.2**, düz ufuk medyanı 9.3. Medyan ve düz ufka karşı karşılaştırma rahatça geçiyor; kuyruk geçmiyor: on noktadan birinde ızgaranın verdiği oran noktanın kendi ufkununkinden 15 (güney) ya da 22 (kuzey) puandan fazla farklı. Güney sınırı 0.04 puanla kaçırıyor; sınır yazıldığı gibi kalıyor, kontrol başarısız sayılıyor. Sayfa bunu haritanın altında yazıyor.
 - *Sonucun yorumu (kontrolden sonra, kontrolün parçası değil):* ızgara noktalarının yaklaşık yarısı doygun: Dünya'yı hiç (güney 26.317'den 11.951, kuzey 10.819) ya da her zaman (2.188 / 3.048) görüyor; bu yüzden rastgele noktaların çoğunda hata hiç yok ve medyan bu nedenle küçük. Hata, karıştırılmış ufkun bir krater kenarıyla tabanını karıştırdığı yerlerde; Güneş saatlerinde de aynısı var (orada p90 11 / 15 puan). Yani haritalar Dünya'nın *nerede* görünüp nerede görünmediği konusunda doğru; kenara yakın tek bir nokta için güvenilecek sayı, noktanın kendi LOLA ufkuyla yapılan analiz (Forecast adayları) ya da özel bir ufuk hesabı. Daha sık ızgara açık bir çözüm ama bu sürümde denenmedi.
 - **C. Belirsizlik işareti** (B başarısız olduktan sonra eklendi; kural ve ölçüt değerlendirilmeden önce `earth_visibility.py`'ye yazıldı): bir noktanın ufkunun karıştırıldığı dört ızgara noktasının Dünya görünürlük oranları 25 puandan fazla farklıysa nokta işaretlenir. Haritada bu yerler taralı gösterilir (3 × 3 komşuluğu 25 puandan fazla değişen ızgara noktası taranır), Anywhere analizi işaretli noktada uyarı verir. B ile aynı 300 noktada değerlendirilir: işaretsiz noktalarda |ızgara − kendi| 90. yüzdeliği en fazla 15 puan ve noktaların en fazla %30'u işaretliyse geçer. **Sonuç (DE440, LOLA): güney geçti, kuzey BAŞARISIZ.** Güney: noktaların %30.0'ı işaretli (sınır %30, tam sınırda), işaretsizlerde 90. yüzdelik 7.0 puan (sınır 15); 15 puanı aşan 31 hatanın 22'si işaretli. Kuzey: %35.3 işaretli (%30 sınırının üstünde), işaretsizlerde 90. yüzdelik 10.3 puan; 50 büyük hatanın 36'sı işaretli. İşaretin olmadığı yerde ızgara iki kutupta da yeterince iyi; kuzeyde ise oraya varmak için işaretin başlığın çok büyük kısmını kaplaması gerekiyor, bu yüzden yazıldığı haliyle başarısız. Haritadaki tarama 3 × 3 komşuluğu kullanır ve değerlendirilen dört noktalı işaretten geniştir: ızgara noktalarının %47.6'sı (güney) ve %54.3'ü (kuzey) taralı. B'nin sonucu değişmez.
+- **D. Karıştırmasız yoğun harita** (v0.20.2; ölçütler 7 Kasım 2026'da, hiçbir yoğun harita hesaplanmadan önce `earth_visibility.py`'ye yazıldı ve bilerek B'den sıkı): `scripts/build_comms_dense.py` 1 km'lik bir ızgaranın her noktasına kendi LOLA ufkunu verir, hiçbir şey karıştırılmaz; bir yerin değeri en yakın noktanınkidir. 300 yeni rastgele noktada: medyan |yoğun − kendi| ≤ 2 ve 90. yüzdelik ≤ 10 yüzde puanı, ve düz ufuktan daha iyi. 5 km'lik harita da aynı noktalarda değerlendirilir; raporlanır, değerlendirilmez. Yoğun harita varsa kutup katmanları onu gösterir; Anywhere analizi, noktanın kendi ufkuyla bulunan oran (1 km harita) ile kullandığı 5 km ızgara ufkunun aynı on iki ayda verdiği oran 15 puandan fazla farklıysa uyarır. **Sonuç (DE440, LOLA): güney geçti, kuzey BAŞARISIZ.** Güney: medyan 0.0, 90. yüzdelik **8.1** (sınır 10), düz ufuk medyanı 13.2; aynı noktalarda 5 km'lik harita: 90. yüzdelik 15.9. Kuzey: medyan 0.0, 90. yüzdelik **11.6** (sınır 10), düz ufuk medyanı 7.9; aynı noktalarda 5 km'lik harita: 90. yüzdelik 23.5. Karıştırmayı kaldırmak iki kutupta da kuyruğu yarıya indiriyor; ama kuzeyde on noktadan biri hâlâ 10 puandan fazla sapıyor, bu yüzden D orada yazıldığı haliyle başarısız. Kalan hata 1 km aralığın kendisinden: bir kenara 500 m mesafede Dünya yönündeki ufuk hâlâ değişiyor. Her harita 15 işçiyle yaklaşık 1 saat 50 dakika sürdü. B ve C'nin sonuçları değişmez.
 - Tutarlılık (`web/tests/earthvis.check.mjs`): bütün Ay ızgarası altı hücrede nokta analiziyle aynı (Dünya ve Güneş + Dünya için en kötü 0.000, DSN için 0.07 puan); aynı efemerisle, ızgara ufkunu kullanan nokta analizi motorun kutup haritasını örnek noktalarında 1 puan içinde yeniden üretir (geliştirme derlemesinde en kötü 0.22 puan). `web/tests/site.check.mjs` 7: temas pencerelerinin toplamı "Earth in view" payıyla 1 puan içinde tutar ve her örnek doğru tarafta.
 
 Sınırlar (sayfada yazılı): 75°'den düşük enlemler için ufuk şimdilik düz, iniş penceresi transfer ve yörünge düzlemini içermez (onlar Browse and plan'da), tutulmalar geometrik (atmosfer gölgeyi ~%2 genişletir).
@@ -402,7 +405,7 @@ Bulgular:
 
 **3. Diviner kutup karşılaştırması:** yukarıda, Regolit sıcaklıkları bölümünde. `python scripts/diviner_polar_check.py --spice` (ağ gerekir, ~5-10 dk, ~15 MB trafik). Bağlantı koparsa çökmez: okunanlar `data/cache/diviner_pcp_points.json`'a kaydedilir, aynı komut kalan dosyalardan devam eder (sorun sürerse `--workers 2`).
 
-**4. Test paketi:** `pytest` (veya `python tests/run_all.py`): 106 test, DE440 kuruluyken hepsi geçiyor (kurulu değilse 3'ü atlanır).
+**4. Test paketi:** `pytest` (veya `python tests/run_all.py`): 107 test, DE440 kuruluyken hepsi geçiyor (kurulu değilse 3'ü atlanır).
 
 | Test | Ne kanıtlıyor |
 |---|---|
@@ -444,6 +447,7 @@ Bulgular:
 5g. ~~Araziden yansıyan ışık ve kızılötesi: radyozite (Ingersoll 1992 ile sınanmış) ve adaylar için tek yansımalı yön örneklemesi~~
 5h. ~~Güç bütçesi hesaplayıcısı; regolit modelinin güney kutbunda Diviner ölçümleriyle karşılaştırılması (ölçüt önceden sabitlendi)~~
 5i. ~~Anywhere: Ay'ın her noktasında zemin sıcaklığı ve güç bütçesi, tarayıcıda (motorla 10⁻¹³ K içinde aynı model)~~
+5j. ~~Dünya'ya doğrudan temas pencereleri ve iletişim haritaları (Dünya görünür, Güneş + Dünya, DSN), önceden kaydedilmiş A-D kontrolleriyle~~
 6. ~~Arazi: LOLA ufuk maskeleri (kutup bölgelerinde gerçek aydınlatma)~~; sırada yüzey eğimi ve iniş elipsi
 7. Eliptik / donmuş yakalama yörüngeleri, GRAIL tam gravite alanı
 8. Yakalama yörüngesini 30 gün boyunca tam modelle propagate etmek (düzlem kayması)

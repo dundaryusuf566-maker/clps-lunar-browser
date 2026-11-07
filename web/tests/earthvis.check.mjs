@@ -124,5 +124,35 @@ for (const tag of ["s", "n"]) {
     `${m.pole}: point analysis with the grid horizon = engine map at ${m.samples.length} grid points: worst Earth ${w.earth.toFixed(2)}, Sun + Earth ${w.sun_earth.toFixed(2)}, DSN ${w.dsn.toFixed(2)} pp`);
 }
 
+// 5. (added with the dense maps, criteria written before the first run, 7 November 2026)
+//    a) earthUpShare is the point analysis's "Earth in view": equal within 0.01 percentage points;
+//    b) dense maps (if built): the browser decodes the engine's sample points exactly and finds, at every
+//       check-D point, the same nearest dense value as the engine.
+for (const [la, lo, hz] of [[-85.3, 30.0, (az) => (az < 40 || az > 320 ? 3 : 0.4)], [-78.0, -120.0, () => 0], [88.5, 10.0, (az) => 1 + Math.sin((az * Math.PI) / 90)]]) {
+  const a = A.analyzeSite(eph, la, lo, START, 30, { stepMin: 60, horizon: hz }).stats.earthUpPct;
+  const b = C.earthUpShare(eph, la, lo, START, 30, hz, 1);
+  check(Math.abs(a - b) <= 0.01, `Earth share at ${la}, ${lo}: ${b.toFixed(3)}% = the point analysis's ${a.toFixed(3)}%`);
+}
+for (const tag of ["s", "n"]) {
+  if (!existsSync(data(`earth_vis_dense_${tag}.json`))) { console.log(`(no earth_vis_dense_${tag}.json: python scripts/build_comms_dense.py --spice${tag === "n" ? " --pole north" : ""})`); continue; }
+  const m = JSON.parse(readFileSync(data(`earth_vis_dense_${tag}.json`), "utf8"));
+  const b = readFileSync(data(m.bin));
+  const v = { meta: m, data: new Uint8Array(b.buffer, b.byteOffset, b.byteLength) };
+  const d = m.check_d;
+  console.log(`--- ${m.pole} pole, dense: ${m.dem}, ${m.ephemeris}, ${m.n} x ${m.n} every ${m.spacing_km} km; check D ${d ? (d.pass ? "pass" : "FAIL") : "not run"}`);
+  check(b.byteLength === m.layers.length * m.n * m.n, `${m.pole} dense: file size ${b.byteLength} = ${m.layers.length} layers x ${m.n} x ${m.n}`);
+  let okS = true, pos = 0;
+  for (const s of m.samples) {
+    const [la, lo] = C.nodeLatLon(m, s.row, s.col);
+    pos = Math.max(pos, Math.abs(la - s.lat), Math.abs(((lo - s.lon + 540) % 360) - 180));
+    for (const L of ["earth", "sun_earth", "dsn"]) if (C.nodeValue(v, L, s.row, s.col) !== s[L]) okS = false;
+  }
+  check(okS && pos < 1e-6, `${m.pole} dense: ${m.samples.length} sample points decoded exactly (position worst ${pos.toExponential(1)} deg)`);
+  if (d && d.samples) {
+    const bad = d.samples.filter(([la, lo, , dv]) => { const x = C.valueNear(v, "earth", la, lo); return !x || x.pct !== dv; }).length;
+    check(bad === 0, `${m.pole} dense: the nearest map value at ${d.samples.length} check-D points is the engine's (${bad} differ)`);
+  }
+}
+
 console.log(failed ? `\n${failed} FAILED` : "\nall communication-map checks passed");
 process.exit(failed ? 1 : 0);

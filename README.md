@@ -34,7 +34,8 @@ The central question: **"I want to land at this site. If I launch on which day d
 | Communication maps: level sphere (check A, DE440) | **pass**: Earth in view 100% / 0% at the near / far centre, 49.4% / 48.0% at the limbs |
 | Communication maps: 5 km grid against each point's own LOLA horizon (check B, 300 points per pole) | **fail**: median 0.10 / 0.07 points (limit 5), but 90th percentile 15.04 / 22.2 (limit 15), south / north; flat horizon median 14.3 / 9.3 |
 | Communication maps: uncertainty flag (check C, added after B failed, same 300 points) | south **pass** (30.0% flagged, limit 30%; unflagged 90th percentile 7.0 points), north **fail** (35.3% flagged; unflagged 10.3) |
-| Python test suite | 106 tests (3 need SPICE) |
+| Communication maps: 1 km grid, each point's own LOLA horizon (check D, 300 new points, stricter limits) | south **pass** (median 0.0, 90th percentile 8.1, limit 10), north **fail** (11.6); the 5 km map at the same points 15.9 / 23.5 |
+| Python test suite | 107 tests (3 need SPICE) |
 
 ## Quick start (Windows command line)
 
@@ -93,6 +94,7 @@ python scripts/check_polar_orientation.py --pole south
 python scripts/build_horizon_grid.py --spice
 python scripts/build_slope_map.py
 python scripts/build_earth_visibility.py --spice
+python scripts/build_comms_dense.py --spice
 ```
 
 For the north pole (optional, +116 MB download):
@@ -103,6 +105,7 @@ python scripts/check_polar_orientation.py --pole north
 python scripts/build_horizon_grid.py --spice --pole north
 python scripts/build_slope_map.py --pole north
 python scripts/build_earth_visibility.py --spice --pole north
+python scripts/build_comms_dense.py --spice --pole north
 ```
 
 What each one does:
@@ -116,6 +119,7 @@ What each one does:
 - **`build_horizon_grid`** makes the LOLA horizon grid and the shaded relief map of a polar cap (~10 min, ~24 MB of tiles).
 - **`build_slope_map`** makes the 240 m slope map of a polar cap (~8 s, 25.7 MB of tiles).
 - **`build_earth_visibility`** makes the communication maps of a polar cap from its horizon grid (~2-5 min, 100 kB) and runs their pre-registered checks; check B needs the LOLA map (below).
+- **`build_comms_dense`** makes the dense (1 km, own horizon at every point) communication maps of a polar cap in parallel (~2 h per pole with 15 workers, 2.5 MB) and runs check D; needs the LOLA map.
 
 Putting the project on GitHub, publishing the site and registering the forecast step by step: [`docs/KAYIT.md`](docs/KAYIT.md) (in Turkish).
 
@@ -294,6 +298,7 @@ Left out of the browser's temperature (stated on the page): the point's own hori
 - **B. Grid against each point's own horizon:** at 300 random points of each cap, |grid − own| for the share of the period with the Earth above the terrain: median ≤ 5 and 90th percentile ≤ 15 percentage points, and better than a flat horizon. **Result (DE440, LOLA): FAIL at both poles.** South: median 0.10, 90th percentile **15.04** (limit 15), flat horizon median 14.3. North: median 0.07, 90th percentile **22.2**, flat horizon median 9.3. The median and the comparison with a flat horizon pass by a wide margin; the tail does not: at one point in ten the grid's share is more than 15 (south) or 22 (north) percentage points from the point's own. The south misses its limit by 0.04 points; the limit stays as written and the check stays failed. The page says so under the map.
 - *Reading the result (after the check, not part of it):* about half of the grid points are saturated, never (south 11,951 of 26,317, north 10,819) or always (2,188 / 3,048) seeing the Earth, so most random points have no error at all and the median is small for that reason. The error sits where the blended horizon mixes a rim with a floor, as for the Sun hours (p90 11 / 15 points there). So the maps are right about *where* the Earth is visible and where it is not; for a single point near a rim, the Anywhere analysis with the point's own LOLA horizon (Forecast candidates) or a dedicated horizon is the number to trust. A denser grid is the obvious remedy but was not tried for this release.
 - **C. An uncertainty flag** (added after B failed; rule and criterion written into `earth_visibility.py` before it was evaluated): a point is flagged when the Earth-in-view shares of the four grid points its horizon is blended from span more than 25 percentage points. On the map such places are hatched (a grid point is hatched if its 3 × 3 neighbourhood spans more than 25), and the Anywhere analysis warns at a flagged point. Judged on the same 300 points per pole as B: pass if the unflagged points' 90th percentile |grid − own| is at most 15 points and at most 30% of the points are flagged. **Result (DE440, LOLA): south pass, north FAIL.** South: 30.0% of the points flagged (limit 30%, met exactly), unflagged 90th percentile 7.0 points (limit 15); 22 of the 31 errors over 15 points are flagged. North: 35.3% flagged (over the 30% limit), unflagged 90th percentile 10.3 points; 36 of 50 large errors flagged. Where the flag is off the grid is good enough at both poles; in the north the flag has to cover too much of the cap to get there, so it fails as written. The map's hatching uses the 3 × 3 neighbourhood and is wider than the judged four-point flag: 47.6% (south) and 54.3% (north) of the grid points are hatched. Check B's result does not change.
+- **D. A dense map with no blending** (v0.20.2; criteria written into `earth_visibility.py` on 7 November 2026, before any dense map was computed, and stricter than B on purpose): `scripts/build_comms_dense.py` gives every point of a 1 km grid its own LOLA horizon, so nothing is blended; the map's value at a place is that of the nearest point. At 300 new random points: median |dense − own| ≤ 2 and 90th percentile ≤ 10 percentage points, and better than a flat horizon. The 5 km map is evaluated at the same points, reported but not judged. When the dense map exists the polar layers show it, and the Anywhere analysis warns where the point's own-horizon share (1 km map) and the 5 km grid horizon it uses differ by more than 15 points over the same twelve months. **Result (DE440, LOLA): south pass, north FAIL.** South: median 0.0, 90th percentile **8.1** (limit 10), flat horizon median 13.2; the 5 km map at the same points: 90th percentile 15.9. North: median 0.0, 90th percentile **11.6** (limit 10), flat horizon median 7.9; the 5 km map at the same points: 90th percentile 23.5. Removing the blend halves the tail at both poles, but in the north one point in ten is still more than 10 points off, so D fails there as written. The rest of the error is the 1 km spacing itself: within 500 m of a rim the horizon towards the Earth still changes. Each map took about 1 h 50 min with 15 workers. B and C keep their results.
 - Consistency (`web/tests/earthvis.check.mjs`): the whole-Moon grid equals the point analysis at six cells (worst 0.000 pp for Earth and Sun + Earth, 0.07 pp for DSN); with the same ephemeris the point analysis using the grid horizon reproduces the engine's polar map at its sample points within 1 pp (0.22 pp at worst on a development build). `web/tests/site.check.mjs` 7: the contact windows add up to the "Earth in view" share within 1 pp and every sample is on the right side.
 
 Limits (stated on the page): below 75° the horizon is level for now; the landing window does not include a transfer or the orbit plane (those are in Browse and plan); eclipses are geometric (the atmosphere widens the real shadow by ~2%).
@@ -435,7 +440,7 @@ Findings:
 
 **3. Diviner polar comparison:** above, in the Regolith temperatures section. `python scripts/diviner_polar_check.py --spice` (needs the network, ~5-10 min, ~15 MB of traffic). It does not crash if the connection drops: what has been read is saved to `data/cache/diviner_pcp_points.json` and the same command continues from the remaining files (if problems persist, `--workers 2`).
 
-**4. Test suite:** `pytest` (or `python tests/run_all.py`): 106 tests, all pass with DE440 installed (without it 3 are skipped). Browser-side: `cd web && npm test` (power budget, sky, site analysis, horizon grid, regolith, slope map, CSV export, communication maps).
+**4. Test suite:** `pytest` (or `python tests/run_all.py`): 107 tests, all pass with DE440 installed (without it 3 are skipped). Browser-side: `cd web && npm test` (power budget, sky, site analysis, horizon grid, regolith, slope map, CSV export, communication maps).
 
 | Test | What it proves |
 |---|---|
@@ -480,6 +485,7 @@ Findings:
    - 5g. ~~Reflected light and infrared from terrain: radiosity (tested against Ingersoll 1992) and single-bounce direction sampling for the candidates~~
    - 5h. ~~Power budget calculator; the regolith model against Diviner measurements at the south pole (criterion fixed in advance)~~
    - 5i. ~~Anywhere: ground temperature and power budget at any point of the Moon, in the browser (the engine's model to 10⁻¹³ K); polar slope map; CSV export~~
+   - 5j. ~~Direct-to-Earth contact windows and communication maps (Earth in view, Sun + Earth, DSN), with pre-registered checks A-D~~
 6. ~~Terrain: LOLA horizon masks (real illumination at the polar sites)~~; next: landing ellipse
 7. Elliptical / frozen capture orbits, GRAIL full gravity field
 8. Propagating the capture orbit for 30 days with the full model (plane drift)

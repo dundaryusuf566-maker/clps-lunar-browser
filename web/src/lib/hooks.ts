@@ -56,10 +56,10 @@ export const useHorizonGridMeta = (pole: "s" | "n") => useJson<HorizonGridMeta>(
 /** Polar slope maps (scripts/build_slope_map.py), optional; tiles are fetched by the page. */
 export const useSlopeMapMeta = (pole: "s" | "n") => useJson<SlopeMapMeta>(`data/slope_map_${pole}.json`, true);
 /** Polar communication maps (scripts/build_earth_visibility.py), optional: meta and the uint8 layers. */
-export function useEarthVis(pole: "s" | "n"): Loadable<EarthVis | null> {
+export function useEarthVis(pole: "s" | "n", dense = false): Loadable<EarthVis | null> {
   const [state, setState] = useState<Loadable<EarthVis | null>>({ status: "loading" });
   useEffect(() => {
-    fetch(`${BASE}data/earth_vis_${pole}.json`)
+    fetch(`${BASE}data/earth_vis_${dense ? "dense_" : ""}${pole}.json`)
       .then(async (m) => {
         if (!m.ok) return null;
         const meta = (await m.json()) as EarthVisMeta;
@@ -69,7 +69,7 @@ export function useEarthVis(pole: "s" | "n"): Loadable<EarthVis | null> {
       })
       .then((data) => setState({ status: "ready", data }))
       .catch(() => setState({ status: "ready", data: null }));
-  }, [pole]);
+  }, [pole, dense]);
   return state;
 }
 export const useOrientationFile = (pole: "south" | "north") => useJson<OrientationFile>(`data/orientation_${pole}.json`, true);

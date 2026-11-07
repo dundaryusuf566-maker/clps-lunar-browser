@@ -10,7 +10,7 @@
  *
  * Pure functions; tested by web/tests/earthvis.check.mjs.
  */
-import { dsnElevations, DSN, DSN_MIN_ELEV_DEG, MOON_R_KM, moonState, utcToTdb, type Ephem, type Frame } from "./sky";
+import { dsnElevations, DSN, DSN_MIN_ELEV_DEG, earthAzEl, MOON_R_KM, moonState, siteFrame, utcToTdb, type Ephem, type Frame } from "./sky";
 
 export type CommsLayer = "earth" | "sun_earth" | "dsn";
 export const COMMS_LAYERS: { id: CommsLayer; label: string; short: string }[] = [
@@ -33,6 +33,9 @@ export interface EarthVisMeta {
   check_c?: null | { spread_pp: number; flagged_share: number; unflagged_p90_pp: number; flagged_p90_pp: number | null;
     large_errors: number; large_errors_flagged: number; pass: boolean; criterion: string };
   hatch_samples?: [number, number, boolean][];
+  dense?: boolean;
+  check_d?: null | { median_pp: number; p90_pp: number; flat_median_pp: number; pass: boolean; criterion: string; points: number;
+    samples?: (number | null)[][]; grid5_same_points_reported_not_judged?: { points: number; median_pp: number; p90_pp: number } };
 }
 export interface EarthVis { meta: EarthVisMeta; data: Uint8Array }
 
@@ -93,6 +96,20 @@ export function nodeUncertain(v: EarthVis, row: number, col: number): boolean {
     if (x !== null) { lo = Math.min(lo, x); hi = Math.max(hi, x); }
   }
   return hi - lo > spreadLimit(v.meta);
+}
+
+/** Share (%) of a period with the Earth's centre above a horizon, from the point itself: the rule
+ * of siteAnalysis.ts "Earth in view", without the rest of the analysis (samples every stepH hours,
+ * k = 0..days*24/stepH). */
+export function earthUpShare(e: Ephem, lat: number, lon: number, startMs: number, days: number,
+  horizon: (azDeg: number) => number, stepH = 1): number {
+  const f = siteFrame(lat, lon), n = Math.floor((days * 24) / stepH) + 1;
+  let k = 0;
+  for (let i = 0; i < n; i++) {
+    const a = earthAzEl(moonState(e, utcToTdb(startMs + i * stepH * 3600e3)), f);
+    if (a.el >= horizon(a.az)) k++;
+  }
+  return (100 * k) / n;
 }
 
 // --- whole Moon, level ground -----------------------------------------------------------------
